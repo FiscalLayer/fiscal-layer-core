@@ -42,7 +42,7 @@ export interface GeneralizeConfig {
   type: 'range' | 'category' | 'custom';
 
   /** Range boundaries (for numeric) */
-  ranges?: Array<{ min: number; max: number; label: string }>;
+  ranges?: { min: number; max: number; label: string }[];
 
   /** Category mappings */
   categories?: Record<string, string>;
@@ -148,11 +148,11 @@ export interface MaskingPolicy {
   /**
    * PII detection patterns (regex)
    */
-  piiPatterns?: Array<{
+  piiPatterns?: {
     name: string;
     pattern: string;
     strategy: MaskingStrategy;
-  }>;
+  }[];
 
   /**
    * Policy version

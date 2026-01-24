@@ -108,12 +108,12 @@ export interface ValidationContext {
   /**
    * Results from completed filter steps
    */
-  readonly completedSteps: ReadonlyArray<StepResult>;
+  readonly completedSteps: readonly StepResult[];
 
   /**
    * All diagnostics accumulated so far
    */
-  readonly diagnostics: ReadonlyArray<Diagnostic>;
+  readonly diagnostics: readonly Diagnostic[];
 
   /**
    * Whether validation should be aborted (timeout or fatal error)
@@ -138,7 +138,7 @@ export interface ValidationContext {
   /**
    * Get configuration for the current filter
    */
-  getFilterConfig<T = Record<string, unknown>>(filterId: string): T | undefined;
+  getFilterConfig(filterId: string): Record<string, unknown> | undefined;
 }
 
 /**

@@ -87,7 +87,7 @@ export interface FilterBillingEvent extends BillingEvent {
  */
 export interface ExternalApiBillingEvent extends BillingEvent {
   type: 'external.api.call';
-  service: 'vies' | 'ecb' | 'peppol' | 'kosit' | string;
+  service: string;
   endpoint?: string;
   responseStatus?: number;
   durationMs: number;
