@@ -8,6 +8,51 @@ This package contains **offline validation filters** that do NOT make external A
 
 This package is part of the FiscalLayer Open Core distribution under Apache 2.0 license.
 
+## Package Boundary Architecture
+
+FiscalLayer uses an **Open Core** model with clear package boundaries:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        OSS Packages (Apache 2.0)                    │
+├─────────────────────────────────────────────────────────────────────┤
+│  @fiscal-layer/contracts    - Type definitions & interfaces        │
+│  @fiscal-layer/kernel       - Pipeline engine                       │
+│  @fiscal-layer/filters-core - Offline validation (this package)     │
+│  @fiscal-layer/steps-parser - XML parsing & format detection        │
+│  @fiscal-layer/steps-kosit  - KoSIT wrapper (local Docker/Java)     │
+│  @fiscal-layer/privacy      - PII masking & safe logging            │
+│  @fiscal-layer/shared       - Utilities (decimal math, hashing)     │
+│  @fiscal-layer/storage      - TempStore abstraction                 │
+└─────────────────────────────────────────────────────────────────────┘
+                                   │
+                                   │ NO imports allowed
+                                   ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                     Private Packages (Proprietary)                  │
+├─────────────────────────────────────────────────────────────────────┤
+│  @fiscal-layer/filters-live     - External APIs (VIES, ECB, Peppol) │
+│  @fiscal-layer/billing          - Stripe integration                │
+│  @fiscal-layer/storage-tenant   - Multi-tenant isolation            │
+│  apps/api, apps/worker, apps/cli - Applications                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### OSS Boundary Rules
+
+This package (and all OSS packages) **MUST NOT**:
+
+1. ❌ Import from `@fiscal-layer/filters-live`, `billing`, `storage-tenant`
+2. ❌ Make external HTTP/API calls
+3. ❌ Read `process.env` directly (use dependency injection)
+4. ❌ Include tenant-specific logic (`tenantId` references)
+5. ❌ Log PII (use safe logger from `@fiscal-layer/shared`)
+
+Run boundary check before commits:
+```bash
+pnpm check:oss-boundary
+```
+
 ## Installation
 
 ```bash
