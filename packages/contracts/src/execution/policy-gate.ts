@@ -72,7 +72,9 @@ export type DecisionReasonCode =
   | 'STEP_SKIPPED_ABORTED' // A step was skipped due to pipeline abort
   // Policy
   | 'POLICY_OVERRIDE' // Manual policy override applied
-  | 'DEFAULT_ALLOW'; // No issues found, default allow
+  | 'DEFAULT_ALLOW' // No issues found, default allow
+  // Billing
+  | 'BILLING_LIMIT_EXCEEDED'; // Monthly usage limit reached
 
 /**
  * Configuration for the PolicyGate filter.
@@ -275,6 +277,7 @@ export function isDecisionReasonCode(value: unknown): value is DecisionReasonCod
     'STEP_SKIPPED_ABORTED',
     'POLICY_OVERRIDE',
     'DEFAULT_ALLOW',
+    'BILLING_LIMIT_EXCEEDED',
   ];
   return typeof value === 'string' && validCodes.includes(value as DecisionReasonCode);
 }

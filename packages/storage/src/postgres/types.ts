@@ -167,3 +167,4 @@ export function numberToPriority(num: number): JobPriority {
   if (num <= 10) return 'normal';
   return 'low';
 }
+

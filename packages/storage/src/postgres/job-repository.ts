@@ -116,30 +116,52 @@ export class JobRepository {
 
   /**
    * Create a new job in PENDING status.
+   * If no ID is provided, the database generates a UUID automatically.
    */
   async createJob(input: CreateJobInput): Promise<JobRecord> {
-    const id = input.id ?? this.generateJobId();
     const priority = priorityToNumber(input.priority);
 
-    const query = `
-      INSERT INTO jobs (
-        id, status, priority, invoice_content_key, format, options,
-        tenant_id, correlation_id, max_retries
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      RETURNING *
-    `;
+    // If ID is provided, use it; otherwise let database generate UUID
+    const hasCustomId = input.id !== undefined;
 
-    const values = [
-      id,
-      'pending',
-      priority,
-      input.invoiceContentKey,
-      input.format ?? null,
-      JSON.stringify(input.options ?? {}),
-      input.tenantId ?? null,
-      input.correlationId ?? null,
-      input.maxRetries ?? 3,
-    ];
+    const query = hasCustomId
+      ? `
+        INSERT INTO jobs (
+          id, status, priority, invoice_content_key, format, options,
+          tenant_id, correlation_id, max_retries
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING *
+      `
+      : `
+        INSERT INTO jobs (
+          status, priority, invoice_content_key, format, options,
+          tenant_id, correlation_id, max_retries
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING *
+      `;
+
+    const values = hasCustomId
+      ? [
+          input.id,
+          'pending',
+          priority,
+          input.invoiceContentKey,
+          input.format ?? null,
+          JSON.stringify(input.options ?? {}),
+          input.tenantId ?? null,
+          input.correlationId ?? null,
+          input.maxRetries ?? 3,
+        ]
+      : [
+          'pending',
+          priority,
+          input.invoiceContentKey,
+          input.format ?? null,
+          JSON.stringify(input.options ?? {}),
+          input.tenantId ?? null,
+          input.correlationId ?? null,
+          input.maxRetries ?? 3,
+        ];
 
     const result = await this.pool.query<JobRow>(query, values);
     const row = result.rows[0];
@@ -167,6 +189,11 @@ export class JobRepository {
   /**
    * Update job status and related fields.
    * Used by worker to mark job as PROCESSING or handle retries.
+   *
+   * IDEMPOTENT: Uses status-based guards to prevent invalid transitions:
+   * - pending → processing (allowed)
+   * - processing → pending (retry, allowed)
+   * - terminal states cannot be changed
    */
   async updateJobStatus(jobId: string, input: UpdateJobStatusInput): Promise<JobRecord | null> {
     const setClauses: string[] = ['status = $2'];
@@ -197,9 +224,20 @@ export class JobRepository {
       paramIndex++;
     }
 
+    // Build WHERE clause based on target status (idempotent transitions)
+    let whereClause = 'WHERE id = $1';
+    if (input.status === 'processing') {
+      // Can only transition to processing from pending
+      whereClause += " AND status = 'pending'";
+    } else if (input.status === 'pending') {
+      // Retry: can only go back to pending from processing
+      whereClause += " AND status = 'processing'";
+    }
+    // Note: Terminal states (completed/blocked/failed/cancelled) are handled by storeJobResult
+
     const query = `
       UPDATE jobs SET ${setClauses.join(', ')}
-      WHERE id = $1
+      ${whereClause}
       RETURNING *
     `;
 
@@ -217,9 +255,18 @@ export class JobRepository {
    * Store job result after validation completes.
    * This is the main method for recording audit trail data.
    *
-   * IMPORTANT: This also clears invoice_content_key (zero-retention).
+   * IMPORTANT:
+   * 1. This also clears invoice_content_key (zero-retention).
+   * 2. Uses compare-and-set: only updates if status is 'pending' or 'processing'.
+   *    This prevents duplicate processing (BullMQ at-least-once delivery).
+   *
+   * @returns The updated job record, or null if:
+   *   - Job doesn't exist
+   *   - Job is already in a terminal state (completed/blocked/failed/cancelled)
    */
   async storeJobResult(jobId: string, input: StoreJobResultInput): Promise<JobRecord | null> {
+    // IDEMPOTENT: Only allow transition from pending/processing to terminal state
+    // This prevents double-writes if BullMQ delivers the same job twice
     const query = `
       UPDATE jobs SET
         status = $2,
@@ -232,6 +279,7 @@ export class JobRepository {
         error_summary = $9,
         invoice_content_key = NULL  -- Zero-retention: clear after processing
       WHERE id = $1
+        AND status IN ('pending', 'processing')  -- Compare-and-set: only from active states
       RETURNING *
     `;
 
@@ -251,6 +299,7 @@ export class JobRepository {
     const row = result.rows[0];
 
     if (!row) {
+      // Either job doesn't exist OR already in terminal state (idempotent - OK)
       return null;
     }
 

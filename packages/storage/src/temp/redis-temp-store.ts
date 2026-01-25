@@ -47,23 +47,57 @@ export interface RedisTempStoreConfig {
 }
 
 /**
+ * Internal structure for stored entries
+ */
+interface StoredEntry<T = unknown> {
+  data: T;
+  meta: {
+    createdAt: string;
+    expiresAt: string;
+    ttlMs: number;
+    encrypted: boolean;
+    category: string;
+    correlationId?: string;
+  };
+}
+
+/**
  * RedisTempStore provides distributed temporary storage with TTL.
  *
  * Features:
  * - Redis-backed for distributed deployments
- * - Native TTL support
- * - Cluster-safe
- * - Encryption at rest (via Redis Enterprise or client-side)
+ * - Native TTL support via Redis PEXPIRE
+ * - Cluster-safe with key prefix isolation
+ * - JSON serialization for complex data types
  *
  * Requirements:
- * - ioredis peer dependency
+ * - ioredis peer dependency must be installed
  *
- * TODO: Implement this class when Redis is required
+ * @example
+ * ```typescript
+ * import { RedisTempStore } from '@fiscal-layer/storage';
+ *
+ * const store = new RedisTempStore({
+ *   url: process.env.REDIS_URL,
+ * });
+ * await store.initialize();
+ *
+ * // Store invoice content with 60s TTL
+ * await store.set('invoice:123', invoiceContent, {
+ *   ttlMs: 60_000,
+ *   category: 'raw-invoice',
+ *   correlationId: 'job-123',
+ * });
+ *
+ * // Retrieve content
+ * const content = await store.get<string>('invoice:123');
+ * ```
  */
 export class RedisTempStore implements TempStore {
-  private readonly config: RedisTempStoreConfig;
-  private client: unknown; // Redis client (ioredis)
+  private readonly config: Required<Pick<RedisTempStoreConfig, 'keyPrefix'>> & RedisTempStoreConfig;
+  private client: import('ioredis').Redis | null = null;
   private closed = false;
+  private initialized = false;
 
   constructor(config: RedisTempStoreConfig = {}) {
     this.config = {
@@ -74,126 +108,301 @@ export class RedisTempStore implements TempStore {
       tls: false,
       ...config,
     };
+  }
 
-    // TODO: Initialize Redis client
-    // const Redis = require('ioredis');
-    // this.client = new Redis({...});
-    this.client = null;
+  /**
+   * Initialize Redis connection.
+   * Must be called before using the store.
+   */
+  async initialize(): Promise<void> {
+    if (this.initialized) return;
+
+    // Dynamic import to avoid loading ioredis when not needed
+    const ioredis = await import('ioredis');
+    // ioredis exports Redis as both default and named export
+    const RedisConstructor = ioredis.Redis ?? ioredis.default;
+
+    if (this.config.url) {
+      this.client = new RedisConstructor(this.config.url, {
+        maxRetriesPerRequest: null, // Required for BullMQ compatibility
+        enableReadyCheck: true,
+        lazyConnect: false,
+      });
+    } else {
+      // Build options object conditionally to satisfy exactOptionalPropertyTypes
+      const redisOptions: import('ioredis').RedisOptions = {
+        host: this.config.host ?? 'localhost',
+        port: this.config.port ?? 6379,
+        db: this.config.db ?? 0,
+        maxRetriesPerRequest: null,
+        enableReadyCheck: true,
+        lazyConnect: false,
+      };
+      if (this.config.password !== undefined) {
+        redisOptions.password = this.config.password;
+      }
+      if (this.config.tls) {
+        redisOptions.tls = {};
+      }
+      this.client = new RedisConstructor(redisOptions);
+    }
+
+    // Wait for connection
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Redis connection timeout'));
+      }, 10000);
+
+      this.client!.once('ready', () => {
+        clearTimeout(timeout);
+        resolve();
+      });
+
+      this.client!.once('error', (err) => {
+        clearTimeout(timeout);
+        reject(err);
+      });
+    });
+
+    this.initialized = true;
+  }
+
+  private getFullKey(key: string): string {
+    return this.config.keyPrefix + key;
   }
 
   async set<T>(key: string, data: T, options?: TempStoreOptions): Promise<TempStoreEntry<T>> {
     this.checkClosed();
-    this.checkClient();
+    await this.ensureInitialized();
 
-    // TODO: Implement Redis SET with TTL
-    // const fullKey = this.config.keyPrefix + key;
-    // const ttlMs = options?.ttlMs ?? 60_000;
-    // const serialized = JSON.stringify({ data, meta: { ... } });
-    // await this.client.set(fullKey, serialized, 'PX', ttlMs);
+    const fullKey = this.getFullKey(key);
+    const ttlMs = options?.ttlMs ?? 60_000;
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + ttlMs);
 
-    throw new Error('RedisTempStore not implemented. Use MemoryTempStore for now.');
+    const meta: StoredEntry<T>['meta'] = {
+      createdAt: now.toISOString(),
+      expiresAt: expiresAt.toISOString(),
+      ttlMs,
+      encrypted: options?.encrypt ?? false,
+      category: options?.category ?? 'default',
+    };
+    if (options?.correlationId !== undefined) {
+      meta.correlationId = options.correlationId;
+    }
+
+    const entry: StoredEntry<T> = { data, meta };
+
+    const serialized = JSON.stringify(entry);
+    await this.client!.set(fullKey, serialized, 'PX', ttlMs);
+
+    const result: TempStoreEntry<T> = {
+      key,
+      data,
+      createdAt: entry.meta.createdAt,
+      expiresAt: entry.meta.expiresAt,
+      ttlMs,
+      encrypted: entry.meta.encrypted,
+      category: entry.meta.category,
+    };
+    if (entry.meta.correlationId !== undefined) {
+      result.correlationId = entry.meta.correlationId;
+    }
+
+    return result;
   }
 
   async get<T>(key: string): Promise<T | undefined> {
     this.checkClosed();
-    this.checkClient();
+    await this.ensureInitialized();
 
-    // TODO: Implement Redis GET
-    // const fullKey = this.config.keyPrefix + key;
-    // const value = await this.client.get(fullKey);
-    // if (!value) return undefined;
-    // const { data } = JSON.parse(value);
-    // return data as T;
+    const fullKey = this.getFullKey(key);
+    const value = await this.client!.get(fullKey);
 
-    throw new Error('RedisTempStore not implemented. Use MemoryTempStore for now.');
+    if (!value) return undefined;
+
+    try {
+      const entry = JSON.parse(value) as StoredEntry<T>;
+      return entry.data;
+    } catch {
+      // Invalid JSON, treat as not found
+      return undefined;
+    }
   }
 
   async getMetadata(key: string): Promise<Omit<TempStoreEntry, 'data'> | undefined> {
     this.checkClosed();
-    this.checkClient();
-    throw new Error('RedisTempStore not implemented. Use MemoryTempStore for now.');
+    await this.ensureInitialized();
+
+    const fullKey = this.getFullKey(key);
+    const value = await this.client!.get(fullKey);
+
+    if (!value) return undefined;
+
+    try {
+      const entry = JSON.parse(value) as StoredEntry;
+      const result: Omit<TempStoreEntry, 'data'> = {
+        key,
+        createdAt: entry.meta.createdAt,
+        expiresAt: entry.meta.expiresAt,
+        ttlMs: entry.meta.ttlMs,
+        encrypted: entry.meta.encrypted,
+        category: entry.meta.category,
+      };
+      if (entry.meta.correlationId !== undefined) {
+        result.correlationId = entry.meta.correlationId;
+      }
+      return result;
+    } catch {
+      return undefined;
+    }
   }
 
   async has(key: string): Promise<boolean> {
     this.checkClosed();
-    this.checkClient();
+    await this.ensureInitialized();
 
-    // TODO: Implement Redis EXISTS
-    // const fullKey = this.config.keyPrefix + key;
-    // return (await this.client.exists(fullKey)) === 1;
-
-    throw new Error('RedisTempStore not implemented. Use MemoryTempStore for now.');
+    const fullKey = this.getFullKey(key);
+    const exists = await this.client!.exists(fullKey);
+    return exists === 1;
   }
 
   async delete(key: string): Promise<boolean> {
     this.checkClosed();
-    this.checkClient();
+    await this.ensureInitialized();
 
-    // TODO: Implement Redis DEL
-    // const fullKey = this.config.keyPrefix + key;
-    // return (await this.client.del(fullKey)) === 1;
-
-    throw new Error('RedisTempStore not implemented. Use MemoryTempStore for now.');
+    const fullKey = this.getFullKey(key);
+    const deleted = await this.client!.del(fullKey);
+    return deleted === 1;
   }
 
   async secureDelete(key: string): Promise<boolean> {
     this.checkClosed();
-    this.checkClient();
+    await this.ensureInitialized();
 
-    // TODO: Implement secure delete
-    // 1. Get the key
-    // 2. Overwrite with zeros
-    // 3. Delete
-    // Note: Redis doesn't guarantee secure deletion from memory/disk
+    const fullKey = this.getFullKey(key);
 
-    throw new Error('RedisTempStore not implemented. Use MemoryTempStore for now.');
+    // Check if key exists first
+    const exists = await this.client!.exists(fullKey);
+    if (exists !== 1) return false;
+
+    // Overwrite with zeros before deletion
+    // Note: Redis doesn't guarantee secure deletion from memory/disk,
+    // but this provides defense-in-depth
+    const zeroData = JSON.stringify({ data: null, meta: { overwritten: true } });
+    await this.client!.set(fullKey, zeroData);
+
+    // Delete the key
+    const deleted = await this.client!.del(fullKey);
+    return deleted === 1;
   }
 
   async ttl(key: string): Promise<number> {
     this.checkClosed();
-    this.checkClient();
+    await this.ensureInitialized();
 
-    // TODO: Implement Redis PTTL
-    // const fullKey = this.config.keyPrefix + key;
-    // const ttl = await this.client.pttl(fullKey);
-    // return ttl < 0 ? -1 : ttl;
+    const fullKey = this.getFullKey(key);
+    const ttl = await this.client!.pttl(fullKey);
 
-    throw new Error('RedisTempStore not implemented. Use MemoryTempStore for now.');
+    // PTTL returns:
+    // -2 if key doesn't exist
+    // -1 if key exists but has no TTL
+    // positive number: TTL in milliseconds
+    return ttl < 0 ? -1 : ttl;
   }
 
   async extendTtl(key: string, additionalMs: number): Promise<string | undefined> {
     this.checkClosed();
-    this.checkClient();
+    await this.ensureInitialized();
 
-    // TODO: Implement TTL extension
-    // 1. Get current TTL
-    // 2. Add additionalMs
-    // 3. PEXPIRE with new TTL
+    const fullKey = this.getFullKey(key);
 
-    throw new Error('RedisTempStore not implemented. Use MemoryTempStore for now.');
+    // Get current TTL
+    const currentTtl = await this.client!.pttl(fullKey);
+    if (currentTtl < 0) return undefined;
+
+    // Calculate new TTL
+    const newTtl = currentTtl + additionalMs;
+    await this.client!.pexpire(fullKey, newTtl);
+
+    // Return new expiration time
+    const newExpiresAt = new Date(Date.now() + newTtl);
+    return newExpiresAt.toISOString();
   }
 
   async cleanup(): Promise<number> {
-    // Redis handles TTL automatically, no manual cleanup needed
+    // Redis handles TTL automatically via PEXPIRE
+    // No manual cleanup needed
     return 0;
   }
 
   async stats(): Promise<TempStoreStats> {
     this.checkClosed();
-    this.checkClient();
+    await this.ensureInitialized();
 
-    // TODO: Implement stats using SCAN + INFO
-    // This is expensive in Redis, consider caching or sampling
+    // Use SCAN to count entries with our prefix
+    // This is expensive but necessary for stats
+    let totalEntries = 0;
+    let totalSizeBytes = 0;
+    const byCategory: Record<string, number> = {};
+    let cursor = '0';
 
-    throw new Error('RedisTempStore not implemented. Use MemoryTempStore for now.');
+    do {
+      const [nextCursor, keys] = await this.client!.scan(
+        cursor,
+        'MATCH',
+        this.config.keyPrefix + '*',
+        'COUNT',
+        100,
+      );
+      cursor = nextCursor;
+
+      for (const key of keys) {
+        totalEntries++;
+
+        // Get value to check category and size
+        const value = await this.client!.get(key);
+        if (value) {
+          totalSizeBytes += value.length;
+
+          try {
+            const entry = JSON.parse(value) as StoredEntry;
+            const category = entry.meta.category;
+            byCategory[category] = (byCategory[category] ?? 0) + 1;
+          } catch {
+            // Invalid JSON, count as 'unknown'
+            byCategory['unknown'] = (byCategory['unknown'] ?? 0) + 1;
+          }
+        }
+      }
+    } while (cursor !== '0');
+
+    const result: TempStoreStats = {
+      totalEntries,
+      totalSizeBytes,
+      byCategory,
+      expiredPending: 0, // Redis handles expiration automatically
+      failedDeletesPending: 0,
+    };
+    // lastCleanupAt is optional - Redis handles expiration automatically
+    return result;
   }
 
   async close(): Promise<void> {
     if (this.closed) return;
     this.closed = true;
 
-    // TODO: Close Redis connection
-    // await this.client?.quit();
+    if (this.client) {
+      await this.client.quit();
+      this.client = null;
+    }
+  }
+
+  /**
+   * Check if the store is connected to Redis.
+   */
+  isConnected(): boolean {
+    return this.initialized && !this.closed && this.client?.status === 'ready';
   }
 
   private checkClosed(): void {
@@ -202,11 +411,43 @@ export class RedisTempStore implements TempStore {
     }
   }
 
-  private checkClient(): void {
-    if (!this.client) {
-      throw new Error(
-        'Redis client not initialized. Install ioredis and configure connection.',
-      );
+  private async ensureInitialized(): Promise<void> {
+    if (!this.initialized) {
+      await this.initialize();
     }
   }
+}
+
+/**
+ * Create a RedisTempStore from environment variables.
+ *
+ * Environment variables:
+ * - REDIS_URL: Full Redis connection URL
+ * - REDIS_HOST: Redis host (default: localhost)
+ * - REDIS_PORT: Redis port (default: 6379)
+ * - REDIS_PASSWORD: Redis password
+ * - REDIS_DB: Redis database number (default: 0)
+ * - REDIS_KEY_PREFIX: Key prefix (default: fl:temp:)
+ */
+export async function createRedisTempStoreFromEnv(): Promise<RedisTempStore> {
+  const config: RedisTempStoreConfig = {};
+
+  if (process.env['REDIS_URL']) {
+    config.url = process.env['REDIS_URL'];
+  } else {
+    config.host = process.env['REDIS_HOST'] ?? 'localhost';
+    config.port = parseInt(process.env['REDIS_PORT'] ?? '6379', 10);
+    if (process.env['REDIS_PASSWORD']) {
+      config.password = process.env['REDIS_PASSWORD'];
+    }
+    config.db = parseInt(process.env['REDIS_DB'] ?? '0', 10);
+  }
+
+  if (process.env['REDIS_KEY_PREFIX']) {
+    config.keyPrefix = process.env['REDIS_KEY_PREFIX'];
+  }
+
+  const store = new RedisTempStore(config);
+  await store.initialize();
+  return store;
 }
