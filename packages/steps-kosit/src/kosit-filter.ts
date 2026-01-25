@@ -2,11 +2,12 @@ import type { Filter, FilterContext, StepResult, Diagnostic } from '@fiscal-laye
 import type { KositRunner, KositRunnerConfig, KositValidateOptions } from './types.js';
 import { kositItemsToDiagnostics } from './types.js';
 import { MockKositRunner } from './mock-kosit-runner.js';
+import { DockerKositRunner, type DockerKositRunnerConfig } from './docker-kosit-runner.js';
 
 /**
  * KoSIT filter configuration
  */
-export interface KositFilterConfig extends KositRunnerConfig {
+export interface KositFilterConfig extends KositRunnerConfig, Partial<DockerKositRunnerConfig> {
   /**
    * Runner type to use
    * @default 'mock'
@@ -57,11 +58,19 @@ export function createKositFilter(config: KositFilterConfig = {}): Filter {
       } else {
         // Create runner based on type
         switch (config.runnerType) {
-          case 'docker':
-            // TODO: Use DockerKositRunner when implemented
-            throw new Error(
-              'Docker runner not implemented. Use "mock" or provide a custom runner.',
-            );
+          case 'docker': {
+            const dockerConfig: DockerKositRunnerConfig = {};
+            if (config.mode !== undefined) dockerConfig.mode = config.mode;
+            if (config.daemonUrl !== undefined) dockerConfig.daemonUrl = config.daemonUrl;
+            if (config.daemonImage !== undefined) dockerConfig.daemonImage = config.daemonImage;
+            if (config.cliImage !== undefined) dockerConfig.cliImage = config.cliImage;
+            if (config.network !== undefined) dockerConfig.network = config.network;
+            if (config.memoryLimit !== undefined) dockerConfig.memoryLimit = config.memoryLimit;
+            if (config.cpuLimit !== undefined) dockerConfig.cpuLimit = config.cpuLimit;
+            if (config.timeoutMs !== undefined) dockerConfig.timeoutMs = config.timeoutMs;
+            runner = new DockerKositRunner(dockerConfig);
+            break;
+          }
           case 'native':
             // TODO: Use NativeKositRunner when implemented
             throw new Error(
@@ -143,6 +152,31 @@ export function createKositFilter(config: KositFilterConfig = {}): Filter {
         // Run validation
         const result = await runner.validate(rawXml, validateOptions);
 
+        // Check for fallback event (DockerKositRunner in auto mode)
+        let fallbackEvent: { code: string; reason: string; fallbackMode: string } | undefined;
+        if (runner instanceof DockerKositRunner) {
+          const event = runner.getLastFallbackEvent();
+          if (event) {
+            fallbackEvent = {
+              code: event.code,
+              reason: event.reason,
+              fallbackMode: event.fallbackMode,
+            };
+            // Add info diagnostic about fallback
+            diagnostics.push({
+              code: event.code,
+              message: `KoSIT daemon unavailable, using CLI fallback: ${event.reason}`,
+              severity: 'info',
+              category: 'internal',
+              source: 'kosit',
+              context: {
+                fallbackMode: event.fallbackMode,
+                timestamp: event.timestamp,
+              },
+            });
+          }
+        }
+
         // Convert KoSIT items to diagnostics
         const kositDiagnostics = kositItemsToDiagnostics(result.items, 'kosit');
         diagnostics.push(...kositDiagnostics);
@@ -167,7 +201,7 @@ export function createKositFilter(config: KositFilterConfig = {}): Filter {
           durationMs: Date.now() - startTime,
           metadata: {
             profile: result.profile,
-            validatorVersion: result.validatorVersion,
+            validatorVersion: result.versionInfo.validatorVersion,
             scenarioName: result.scenarioName,
             schemaValid: result.schemaValid,
             schematronValid: result.schematronValid,
@@ -175,6 +209,7 @@ export function createKositFilter(config: KositFilterConfig = {}): Filter {
             ...(config.includeRawOutput && result.rawOutput
               ? { rawOutput: result.rawOutput }
               : {}),
+            ...(fallbackEvent ? { fallbackEvent } : {}),
           },
         };
       } catch (error) {

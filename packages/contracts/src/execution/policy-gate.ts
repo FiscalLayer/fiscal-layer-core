@@ -69,6 +69,7 @@ export type DecisionReasonCode =
   // Step status
   | 'STEP_TIMEOUT' // A step timed out
   | 'STEP_ERROR' // A step had an internal error
+  | 'STEP_SKIPPED_ABORTED' // A step was skipped due to pipeline abort
   // Policy
   | 'POLICY_OVERRIDE' // Manual policy override applied
   | 'DEFAULT_ALLOW'; // No issues found, default allow
@@ -271,6 +272,7 @@ export function isDecisionReasonCode(value: unknown): value is DecisionReasonCod
     'REQUIRED_CHECK_FAILED',
     'STEP_TIMEOUT',
     'STEP_ERROR',
+    'STEP_SKIPPED_ABORTED',
     'POLICY_OVERRIDE',
     'DEFAULT_ALLOW',
   ];

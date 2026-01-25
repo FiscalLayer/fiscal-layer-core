@@ -313,7 +313,18 @@ export class Pipeline implements PipelineInterface {
     context: ValidationContextImpl,
   ): Promise<void> {
     for (const step of steps) {
-      if (context.aborted) break;
+      // Skip if aborted, unless this step has 'always_run' policy
+      if (context.aborted && step.failurePolicy !== 'always_run') {
+        // Record skipped step for audit trail
+        context.addStepResult({
+          filterId: step.filterId,
+          status: 'skipped',
+          diagnostics: [],
+          durationMs: 0,
+          metadata: { skippedReason: 'pipeline_aborted', abortReason: context.abortReason },
+        });
+        continue;
+      }
       if (!step.enabled) continue;
 
       // Check condition

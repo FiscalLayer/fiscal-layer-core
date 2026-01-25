@@ -28,7 +28,12 @@ export function calculateConfigHash(plan: ExecutionPlan): string {
 
 /**
  * Calculate SHA-256 hash of the complete plan snapshot.
- * This hash covers: steps, engine versions, and effective config hash.
+ * This hash covers: steps, kernelVersion, and effective config hash.
+ *
+ * NOTE: nodeVersion is intentionally EXCLUDED from the hash to prevent
+ * environment-specific drift (e.g., Node 20.10.0 vs 20.11.0).
+ * The full engineVersions are recorded in the snapshot for auditing,
+ * but only kernelVersion affects the hash since it reflects code changes.
  *
  * @param snapshot - The execution plan snapshot (without planHash field)
  * @returns Hash in format: "sha256:<hex>"
@@ -38,12 +43,15 @@ export function calculatePlanHash(
 ): string {
   // Create deterministic representation for plan hash
   // Excludes createdAt as it changes on each execution
+  // Excludes nodeVersion to prevent environment drift
   const hashInput = {
     planId: snapshot.planId,
     planVersion: snapshot.planVersion,
     configSnapshotHash: snapshot.configSnapshotHash,
     steps: snapshot.steps,
-    engineVersions: snapshot.engineVersions,
+    // Only include kernelVersion (from package.json, stable across environments)
+    // nodeVersion is recorded in engineVersions but not hashed
+    kernelVersion: snapshot.engineVersions.kernelVersion,
   };
 
   return computeConfigHash(hashInput);

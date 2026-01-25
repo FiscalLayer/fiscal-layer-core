@@ -50,9 +50,10 @@ export function createDefaultPlan(): ExecutionPlan {
       order: 50,
     },
     {
-      filterId: 'policy-gate',
+      filterId: 'steps-policy-gate',
       enabled: true,
       order: 60,
+      failurePolicy: 'always_run', // PolicyGate must run to produce final decision
       // PolicyGate config can be customized per-plan
       config: {
         errorBehavior: 'block',

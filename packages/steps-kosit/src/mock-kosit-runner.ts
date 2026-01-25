@@ -11,12 +11,12 @@ import type {
  * Mock validation rules for testing.
  * These simulate the BR-DE (German business rules) from XRechnung.
  */
-const MOCK_RULES: Array<{
+const MOCK_RULES: {
   id: string;
   pattern: RegExp;
   severity: 'error' | 'warning';
   message: string;
-}> = [
+}[] = [
   {
     id: 'BR-DE-01',
     pattern: /<cbc:CustomizationID>.*urn:cen\.eu:en16931/i,
@@ -116,11 +116,13 @@ export class MockKositRunner implements KositRunner {
     };
   }
 
-  async validate(
+  validate(
     xml: string,
     options?: KositValidateOptions,
   ): Promise<KositValidationResult> {
-    this.checkClosed();
+    if (this.closed) {
+      return Promise.reject(new Error('KositRunner is closed'));
+    }
 
     const startTime = Date.now();
     const items: KositValidationItem[] = [];
@@ -219,23 +221,24 @@ export class MockKositRunner implements KositRunner {
       });
     }
 
-    return result;
+    return Promise.resolve(result);
   }
 
-  async healthCheck(): Promise<boolean> {
-    return !this.closed;
+  healthCheck(): Promise<boolean> {
+    return Promise.resolve(!this.closed);
   }
 
-  async getVersion(): Promise<string> {
-    return MockKositRunner.VERSION;
+  getVersion(): Promise<string> {
+    return Promise.resolve(MockKositRunner.VERSION);
   }
 
-  async getVersionInfo(): Promise<KositVersionInfo> {
-    return MockKositRunner.VERSION_INFO;
+  getVersionInfo(): Promise<KositVersionInfo> {
+    return Promise.resolve(MockKositRunner.VERSION_INFO);
   }
 
-  async close(): Promise<void> {
+  close(): Promise<void> {
     this.closed = true;
+    return Promise.resolve();
   }
 
   private checkClosed(): void {
@@ -256,8 +259,8 @@ const ALWAYS_VALID_VERSION_INFO: KositVersionInfo = {
  */
 export function createAlwaysValidRunner(): KositRunner {
   return {
-    async validate(): Promise<KositValidationResult> {
-      return {
+    validate(): Promise<KositValidationResult> {
+      return Promise.resolve({
         valid: true,
         schemaValid: true,
         schematronValid: true,
@@ -267,18 +270,20 @@ export function createAlwaysValidRunner(): KositRunner {
         validatorVersion: 'always-valid/1.0.0',
         versionInfo: ALWAYS_VALID_VERSION_INFO,
         durationMs: 1,
-      };
+      });
     },
-    async healthCheck() {
-      return true;
+    healthCheck() {
+      return Promise.resolve(true);
     },
-    async getVersion() {
-      return 'always-valid/1.0.0';
+    getVersion() {
+      return Promise.resolve('always-valid/1.0.0');
     },
-    async getVersionInfo() {
-      return ALWAYS_VALID_VERSION_INFO;
+    getVersionInfo() {
+      return Promise.resolve(ALWAYS_VALID_VERSION_INFO);
     },
-    async close() {},
+    close() {
+      return Promise.resolve();
+    },
   };
 }
 
@@ -293,8 +298,8 @@ const FIXED_ERROR_VERSION_INFO: KositVersionInfo = {
  */
 export function createFixedErrorRunner(errors: KositValidationItem[]): KositRunner {
   return {
-    async validate(): Promise<KositValidationResult> {
-      return {
+    validate(): Promise<KositValidationResult> {
+      return Promise.resolve({
         valid: false,
         schemaValid: false,
         schematronValid: false,
@@ -307,17 +312,19 @@ export function createFixedErrorRunner(errors: KositValidationItem[]): KositRunn
         validatorVersion: 'fixed-error/1.0.0',
         versionInfo: FIXED_ERROR_VERSION_INFO,
         durationMs: 1,
-      };
+      });
     },
-    async healthCheck() {
-      return true;
+    healthCheck() {
+      return Promise.resolve(true);
     },
-    async getVersion() {
-      return 'fixed-error/1.0.0';
+    getVersion() {
+      return Promise.resolve('fixed-error/1.0.0');
     },
-    async getVersionInfo() {
-      return FIXED_ERROR_VERSION_INFO;
+    getVersionInfo() {
+      return Promise.resolve(FIXED_ERROR_VERSION_INFO);
     },
-    async close() {},
+    close() {
+      return Promise.resolve();
+    },
   };
 }

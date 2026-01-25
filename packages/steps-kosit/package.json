@@ -21,7 +21,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@fiscal-layer/contracts": "workspace:*"
+    "@fiscal-layer/contracts": "workspace:*",
+    "fast-xml-parser": "^5.3.3"
   },
   "devDependencies": {
     "@types/node": "^25.0.10",

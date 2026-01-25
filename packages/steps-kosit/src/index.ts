@@ -14,7 +14,14 @@ export * from './types.js';
 
 // Runners
 export { MockKositRunner, createAlwaysValidRunner, createFixedErrorRunner } from './mock-kosit-runner.js';
-export { DockerKositRunner, parseKositReport, isDockerAvailable, type DockerKositRunnerConfig } from './docker-kosit-runner.js';
+export {
+  DockerKositRunner,
+  parseKositReport,
+  isDockerAvailable,
+  checkDaemonHealth,
+  type DockerKositRunnerConfig,
+  type FallbackEvent,
+} from './docker-kosit-runner.js';
 
 // Filter
 export { createKositFilter, type KositFilterConfig } from './kosit-filter.js';
