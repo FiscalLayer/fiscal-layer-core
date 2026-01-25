@@ -30,8 +30,10 @@ describe('Pipeline', () => {
     registry.register(createMockFilter('vies'));
     registry.register(createMockFilter('ecb-rates'));
     registry.register(createMockFilter('peppol'));
+    registry.register(createMockFilter('steps-amount-validation'));
     registry.register(createMockFilter('semantic-risk'));
     registry.register(createMockFilter('fingerprint'));
+    registry.register(createMockFilter('policy-gate'));
 
     pipeline = new Pipeline({
       registry,

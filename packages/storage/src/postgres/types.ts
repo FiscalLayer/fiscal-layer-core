@@ -7,12 +7,24 @@
  * - Only store metadata, hashes, and sanitized summaries
  */
 
-import type { EngineVersions } from '@fiscal-layer/contracts';
+import type { EngineVersions, PolicyGateDecision } from '@fiscal-layer/contracts';
 
 /**
  * Job status in the database.
+ *
+ * Status mapping from PolicyGate decisions:
+ * - ALLOW -> 'completed'
+ * - ALLOW_WITH_WARNINGS -> 'completed_with_warnings'
+ * - BLOCK -> 'blocked'
  */
-export type JobStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
+export type JobStatus =
+  | 'pending'
+  | 'processing'
+  | 'completed'             // Validation passed (ALLOW)
+  | 'completed_with_warnings' // Validation passed with warnings (ALLOW_WITH_WARNINGS)
+  | 'blocked'               // Rejected by PolicyGate (BLOCK)
+  | 'failed'                // Processing error (not policy rejection)
+  | 'cancelled';
 
 /**
  * Job priority levels (lower number = higher priority).
@@ -33,6 +45,11 @@ export interface ReportSummary {
   };
   fingerprintId?: string;
   runId?: string;
+  /**
+   * PolicyGate decision (if PolicyGate was enabled).
+   * Contains decision outcome and audit trail.
+   */
+  finalDecision?: PolicyGateDecision;
 }
 
 /**
@@ -91,7 +108,14 @@ export interface UpdateJobStatusInput {
  * Input for storing job result (after validation completes).
  */
 export interface StoreJobResultInput {
-  status: 'completed' | 'failed';
+  /**
+   * Final job status based on PolicyGate decision:
+   * - 'completed': ALLOW
+   * - 'completed_with_warnings': ALLOW_WITH_WARNINGS
+   * - 'blocked': BLOCK
+   * - 'failed': Processing error (not policy rejection)
+   */
+  status: 'completed' | 'completed_with_warnings' | 'blocked' | 'failed';
   completedAt: Date;
   resultFingerprintId?: string;
   planHash: string;

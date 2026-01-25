@@ -29,6 +29,17 @@ export function createDefaultPlan(): ExecutionPlan {
       ],
     },
     {
+      filterId: 'steps-amount-validation',
+      enabled: true,
+      order: 35,
+      // Amount validation config can be customized per-plan
+      config: {
+        decimalPlaces: 2,
+        roundingMode: 'ROUND_HALF_EVEN',
+        tolerance: 0.01,
+      },
+    },
+    {
       filterId: 'semantic-risk',
       enabled: true,
       order: 40,
@@ -37,6 +48,17 @@ export function createDefaultPlan(): ExecutionPlan {
       filterId: 'fingerprint',
       enabled: true,
       order: 50,
+    },
+    {
+      filterId: 'policy-gate',
+      enabled: true,
+      order: 60,
+      // PolicyGate config can be customized per-plan
+      config: {
+        errorBehavior: 'block',
+        externalVerifierFailure: 'warn',
+        policyVersion: 'default-v1',
+      },
     },
   ];
 

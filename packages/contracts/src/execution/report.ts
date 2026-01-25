@@ -5,6 +5,7 @@ import type { ExecutionPlan, ExecutionPlanSnapshot, EngineVersions } from './pla
 import type { ComplianceFingerprint } from './fingerprint.js';
 import type { UsageSummary } from '../billing/events.js';
 import type { RetentionWarning } from '../privacy/retention-enforcer.js';
+import type { PolicyGateDecision } from './policy-gate.js';
 
 /**
  * Overall validation status
@@ -240,6 +241,13 @@ export interface ValidationReport {
    * - undefined: No enforcer configured (backwards compatibility)
    */
   appliedRetentionPolicy?: 'zero-retention' | 'audit-retention' | 'custom';
+
+  /**
+   * Final decision from PolicyGate filter.
+   * Contains the ALLOW/ALLOW_WITH_WARNINGS/BLOCK decision with audit trail.
+   * Only present if PolicyGate filter was executed in the pipeline.
+   */
+  finalDecision?: PolicyGateDecision;
 }
 
 /**

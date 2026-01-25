@@ -14,6 +14,10 @@ import type {
   PipelineCleanupResult,
   RetentionWarning,
   EngineVersions,
+  PolicyGateDecision,
+  FinalDecision,
+  DecisionReasonCode,
+  StepDecisionAnalysis,
 } from '@fiscal-layer/contracts';
 import { computeConfigHash } from '@fiscal-layer/shared';
 import { ValidationContextImpl } from '../context/context.js';
@@ -243,6 +247,12 @@ export class Pipeline implements PipelineInterface {
       }
       if (input.correlationId !== undefined) {
         report.correlationId = input.correlationId;
+      }
+
+      // Extract PolicyGate decision if present
+      const finalDecision = this.extractPolicyGateDecision(context.completedSteps);
+      if (finalDecision !== undefined) {
+        report.finalDecision = finalDecision;
       }
 
       // Notify complete
@@ -616,6 +626,59 @@ export class Pipeline implements PipelineInterface {
       return undefined;
     };
     return findConfig(plan.steps);
+  }
+
+  /**
+   * Extract PolicyGateDecision from completed steps.
+   * Returns undefined if PolicyGate was not executed.
+   */
+  private extractPolicyGateDecision(
+    completedSteps: readonly StepResult[],
+  ): PolicyGateDecision | undefined {
+    // Look for policy-gate step result
+    const policyGateStep = completedSteps.find(
+      (s) => s.filterId === 'policy-gate' || s.filterId === 'steps-policy-gate',
+    );
+
+    if (!policyGateStep?.metadata) {
+      return undefined;
+    }
+
+    const metadata = policyGateStep.metadata;
+
+    // Validate required fields
+    const decision = metadata['decision'];
+    const reasonCodes = metadata['reasonCodes'];
+    const appliedPolicyVersion = metadata['appliedPolicyVersion'];
+    const effectiveAt = metadata['effectiveAt'];
+    const summary = metadata['summary'];
+
+    if (
+      typeof decision !== 'string' ||
+      !Array.isArray(reasonCodes) ||
+      typeof appliedPolicyVersion !== 'string' ||
+      typeof effectiveAt !== 'string' ||
+      typeof summary !== 'string'
+    ) {
+      return undefined;
+    }
+
+    // Build the PolicyGateDecision
+    const result: PolicyGateDecision = {
+      decision: decision as FinalDecision,
+      reasonCodes: reasonCodes as DecisionReasonCode[],
+      appliedPolicyVersion,
+      effectiveAt,
+      summary,
+    };
+
+    // Include step analysis if present
+    const stepAnalysis = metadata['stepAnalysis'];
+    if (Array.isArray(stepAnalysis) && stepAnalysis.length > 0) {
+      result.stepAnalysis = stepAnalysis as StepDecisionAnalysis[];
+    }
+
+    return result;
   }
 
   getExecutionPlan(): ExecutionPlan {
