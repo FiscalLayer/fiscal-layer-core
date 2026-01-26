@@ -439,8 +439,8 @@ export class Pipeline implements PipelineInterface {
       context.addStepResult(stepResult);
       context.addDiagnostics(result.diagnostics);
 
-      // Update parsed invoice if parser
-      if (step.filterId === 'parser' && result.metadata?.['parsedInvoice']) {
+      // Update parsed invoice if parser (support both legacy 'parser' and 'steps-parser' IDs)
+      if ((step.filterId === 'parser' || step.filterId === 'steps-parser') && result.metadata?.['parsedInvoice']) {
         context.setParsedInvoice(result.metadata['parsedInvoice'] as never);
       }
 

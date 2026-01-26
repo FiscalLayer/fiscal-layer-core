@@ -116,6 +116,20 @@ export interface KositValidationResult {
   schematronValid: boolean;
 
   /**
+   * Document profile/format not supported by validator configuration.
+   * When true, validation could not be performed (no matching scenario).
+   * Pipeline should treat this as skipped, not failed.
+   */
+  profileUnsupported?: boolean;
+
+  /**
+   * System-level error occurred (XML parse error, service error, etc.).
+   * When true, validation failed due to system issues, not document content.
+   * Pipeline should treat this as a hard failure (SYSTEM block type).
+   */
+  systemError?: boolean;
+
+  /**
    * All validation items (errors, warnings, info)
    */
   items: KositValidationItem[];

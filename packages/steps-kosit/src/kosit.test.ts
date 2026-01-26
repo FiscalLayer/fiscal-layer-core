@@ -16,6 +16,9 @@ import {
   parseKositReport,
   createKositFilter,
   kositItemsToDiagnostics,
+  DockerKositRunner,
+  DEFAULT_NO_SCENARIO_PATTERNS,
+  type Kosit422Logger,
 } from './index.js';
 import type { KositValidationItem } from './types.js';
 import type { FilterContext, ExecutionPlan } from '@fiscal-layer/contracts';
@@ -612,6 +615,212 @@ describe('Redline: No PII in outputs', () => {
   });
 });
 
+describe('Profile Unsupported handling', () => {
+  it('should return skipped status when profile is unsupported', async () => {
+    // Create a runner that simulates HTTP 422 (profile unsupported)
+    const profileUnsupportedRunner = {
+      validate: () =>
+        Promise.resolve({
+          valid: false,
+          schemaValid: false,
+          schematronValid: false,
+          profileUnsupported: true,
+          items: [
+            {
+              ruleId: 'KOSIT-PROFILE-UNSUPPORTED',
+              severity: 'warning' as const,
+              message: 'No matching validation scenario found for this document profile',
+            },
+          ],
+          summary: { errors: 0, warnings: 1, information: 0 },
+          versionInfo: {
+            validatorVersion: '1.5.0-docker',
+            dictionaryVersion: 'xrechnung-3.0.2',
+          },
+          durationMs: 0,
+        }),
+      healthCheck: () => Promise.resolve(true),
+      getVersion: () => Promise.resolve('test/1.0.0'),
+      getVersionInfo: () =>
+        Promise.resolve({
+          validatorVersion: '1.5.0-docker',
+          dictionaryVersion: 'xrechnung-3.0.2',
+        }),
+      close: () => Promise.resolve(),
+    };
+
+    const filter = createKositFilter({
+      runner: profileUnsupportedRunner,
+    });
+
+    await filter.onInit?.();
+
+    const context = createMockContext(VALID_XRECHNUNG_XML);
+    const result = await filter.execute(context);
+
+    expect(result.status).toBe('skipped');
+    expect(result.metadata?.['profileUnsupported']).toBe(true);
+    expect(result.metadata?.['reasonCode']).toBe('KOSIT_PROFILE_UNSUPPORTED');
+    expect(result.diagnostics.some((d) => d.code === 'KOSIT-PROFILE-UNSUPPORTED')).toBe(true);
+
+    await filter.onDestroy?.();
+  });
+
+  it('should not block when profile is unsupported (pipeline continues)', async () => {
+    const profileUnsupportedRunner = {
+      validate: () =>
+        Promise.resolve({
+          valid: false,
+          schemaValid: false,
+          schematronValid: false,
+          profileUnsupported: true,
+          items: [
+            {
+              ruleId: 'KOSIT-PROFILE-UNSUPPORTED',
+              severity: 'warning' as const,
+              message: 'No matching validation scenario found',
+            },
+          ],
+          summary: { errors: 0, warnings: 1, information: 0 },
+          versionInfo: {
+            validatorVersion: '1.5.0-docker',
+            dictionaryVersion: 'xrechnung-3.0.2',
+          },
+          durationMs: 0,
+        }),
+      healthCheck: () => Promise.resolve(true),
+      getVersion: () => Promise.resolve('test/1.0.0'),
+      getVersionInfo: () =>
+        Promise.resolve({
+          validatorVersion: '1.5.0-docker',
+          dictionaryVersion: 'xrechnung-3.0.2',
+        }),
+      close: () => Promise.resolve(),
+    };
+
+    const filter = createKositFilter({
+      runner: profileUnsupportedRunner,
+    });
+
+    await filter.onInit?.();
+
+    const context = createMockContext(VALID_XRECHNUNG_XML);
+    const result = await filter.execute(context);
+
+    // Key assertion: status is 'skipped', not 'failed'
+    // This allows the pipeline to continue with subsequent filters
+    expect(result.status).not.toBe('failed');
+    expect(result.status).toBe('skipped');
+
+    await filter.onDestroy?.();
+  });
+
+  it('should return error status for system errors (e.g., XML malformed)', async () => {
+    // Create a runner that simulates system error (422 with XML parse error)
+    const systemErrorRunner = {
+      validate: () =>
+        Promise.resolve({
+          valid: false,
+          schemaValid: false,
+          schematronValid: false,
+          systemError: true,
+          items: [
+            {
+              ruleId: 'KOSIT-PARSE-ERROR',
+              severity: 'error' as const,
+              message: 'XML parsing or validation error: malformed XML',
+            },
+          ],
+          summary: { errors: 1, warnings: 0, information: 0 },
+          versionInfo: {
+            validatorVersion: '1.5.0-docker',
+            dictionaryVersion: 'xrechnung-3.0.2',
+          },
+          durationMs: 0,
+        }),
+      healthCheck: () => Promise.resolve(true),
+      getVersion: () => Promise.resolve('test/1.0.0'),
+      getVersionInfo: () =>
+        Promise.resolve({
+          validatorVersion: '1.5.0-docker',
+          dictionaryVersion: 'xrechnung-3.0.2',
+        }),
+      close: () => Promise.resolve(),
+    };
+
+    const filter = createKositFilter({
+      runner: systemErrorRunner,
+    });
+
+    await filter.onInit?.();
+
+    const context = createMockContext(VALID_XRECHNUNG_XML);
+    const result = await filter.execute(context);
+
+    // System error should result in 'error' status, not 'skipped'
+    expect(result.status).toBe('error');
+    expect(result.metadata?.['systemError']).toBe(true);
+    expect(result.metadata?.['reasonCode']).toBe('KOSIT_SYSTEM_ERROR');
+    expect(result.diagnostics.some((d) => d.severity === 'error')).toBe(true);
+
+    await filter.onDestroy?.();
+  });
+
+  it('should return failed status for 406 (validation rejection)', async () => {
+    // Create a runner that simulates HTTP 406 (validation rejection)
+    const validationRejectionRunner = {
+      validate: () =>
+        Promise.resolve({
+          valid: false,
+          schemaValid: true,
+          schematronValid: false,
+          // Note: NOT profileUnsupported, NOT systemError - just a regular validation failure
+          items: [
+            {
+              ruleId: 'BR-CO-25',
+              severity: 'error' as const,
+              message: 'Payment terms or due date must be present',
+            },
+          ],
+          summary: { errors: 1, warnings: 0, information: 0 },
+          versionInfo: {
+            validatorVersion: '1.5.0-docker',
+            dictionaryVersion: 'xrechnung-3.0.2',
+          },
+          scenarioName: 'EN16931 CII',
+          profile: 'en16931-cii',
+          durationMs: 0,
+        }),
+      healthCheck: () => Promise.resolve(true),
+      getVersion: () => Promise.resolve('test/1.0.0'),
+      getVersionInfo: () =>
+        Promise.resolve({
+          validatorVersion: '1.5.0-docker',
+          dictionaryVersion: 'xrechnung-3.0.2',
+        }),
+      close: () => Promise.resolve(),
+    };
+
+    const filter = createKositFilter({
+      runner: validationRejectionRunner,
+    });
+
+    await filter.onInit?.();
+
+    const context = createMockContext(VALID_XRECHNUNG_XML);
+    const result = await filter.execute(context);
+
+    // 406 validation rejection should be 'failed', not 'skipped' or 'error'
+    expect(result.status).toBe('failed');
+    expect(result.metadata?.['profileUnsupported']).toBeUndefined();
+    expect(result.metadata?.['systemError']).toBeUndefined();
+    expect(result.metadata?.['scenarioName']).toBe('EN16931 CII');
+    expect(result.diagnostics.some((d) => d.code === 'BR-CO-25')).toBe(true);
+
+    await filter.onDestroy?.();
+  });
+});
+
 describe('Error code sanitization', () => {
   it('should sanitize special characters in rule codes', () => {
     const result = parseKositReport(`<?xml version="1.0"?>
@@ -646,5 +855,193 @@ describe('Error code sanitization', () => {
 
     const errorItem = result.items.find((i) => i.severity === 'error');
     expect(errorItem?.ruleId.length).toBeLessThanOrEqual(50);
+  });
+});
+
+describe('DockerKositRunner 422 classification', () => {
+  it('should export DEFAULT_NO_SCENARIO_PATTERNS constant', () => {
+    expect(DEFAULT_NO_SCENARIO_PATTERNS).toBeDefined();
+    expect(Array.isArray(DEFAULT_NO_SCENARIO_PATTERNS)).toBe(true);
+    expect(DEFAULT_NO_SCENARIO_PATTERNS.length).toBeGreaterThan(0);
+    expect(DEFAULT_NO_SCENARIO_PATTERNS).toContain('no matching scenario');
+    expect(DEFAULT_NO_SCENARIO_PATTERNS).toContain('kein passendes szenario');
+  });
+
+  it('should allow custom noScenarioPatterns configuration', () => {
+    // This tests that the configuration is accepted
+    const runner = new DockerKositRunner({
+      mode: 'daemon',
+      daemonUrl: 'http://localhost:8080',
+      noScenarioPatterns: ['custom pattern', 'another pattern'],
+    });
+
+    // Runner should be created without error
+    expect(runner).toBeDefined();
+  });
+
+  it('should accept a logger via setLogger()', () => {
+    const runner = new DockerKositRunner({
+      mode: 'daemon',
+      daemonUrl: 'http://localhost:8080',
+    });
+
+    const logMessages: Array<{ message: string; context: Record<string, unknown> | undefined }> = [];
+    const mockLogger: Kosit422Logger = {
+      info: (message: string, context?: Record<string, unknown>) => {
+        logMessages.push({ message, context });
+      },
+    };
+
+    runner.setLogger(mockLogger);
+    expect(runner).toBeDefined();
+  });
+});
+
+describe('StepStatus stability for KoSIT errors', () => {
+  it('should consistently return error status for systemError=true', async () => {
+    // Run the same scenario multiple times to verify consistency
+    for (let i = 0; i < 3; i++) {
+      const systemErrorRunner = {
+        validate: () =>
+          Promise.resolve({
+            valid: false,
+            schemaValid: false,
+            schematronValid: false,
+            systemError: true,
+            items: [
+              {
+                ruleId: 'KOSIT-SYSTEM-ERROR',
+                severity: 'error' as const,
+                message: 'KoSIT system error',
+              },
+            ],
+            summary: { errors: 1, warnings: 0, information: 0 },
+            versionInfo: {
+              validatorVersion: '1.5.0-docker',
+              dictionaryVersion: 'xrechnung-3.0.2',
+            },
+            durationMs: 0,
+          }),
+        healthCheck: () => Promise.resolve(true),
+        getVersion: () => Promise.resolve('test/1.0.0'),
+        getVersionInfo: () =>
+          Promise.resolve({
+            validatorVersion: '1.5.0-docker',
+            dictionaryVersion: 'xrechnung-3.0.2',
+          }),
+        close: () => Promise.resolve(),
+      };
+
+      const filter = createKositFilter({ runner: systemErrorRunner });
+      await filter.onInit?.();
+
+      const context = createMockContext(VALID_XRECHNUNG_XML);
+      const result = await filter.execute(context);
+
+      // CRITICAL: status must be 'error', not 'failed' or anything else
+      expect(result.status).toBe('error');
+      expect(result.metadata?.['systemError']).toBe(true);
+      expect(result.metadata?.['reasonCode']).toBe('KOSIT_SYSTEM_ERROR');
+
+      await filter.onDestroy?.();
+    }
+  });
+
+  it('should consistently return skipped status for profileUnsupported=true', async () => {
+    // Run the same scenario multiple times to verify consistency
+    for (let i = 0; i < 3; i++) {
+      const profileUnsupportedRunner = {
+        validate: () =>
+          Promise.resolve({
+            valid: false,
+            schemaValid: false,
+            schematronValid: false,
+            profileUnsupported: true,
+            items: [
+              {
+                ruleId: 'KOSIT-PROFILE-UNSUPPORTED',
+                severity: 'warning' as const,
+                message: 'No matching validation scenario',
+              },
+            ],
+            summary: { errors: 0, warnings: 1, information: 0 },
+            versionInfo: {
+              validatorVersion: '1.5.0-docker',
+              dictionaryVersion: 'xrechnung-3.0.2',
+            },
+            durationMs: 0,
+          }),
+        healthCheck: () => Promise.resolve(true),
+        getVersion: () => Promise.resolve('test/1.0.0'),
+        getVersionInfo: () =>
+          Promise.resolve({
+            validatorVersion: '1.5.0-docker',
+            dictionaryVersion: 'xrechnung-3.0.2',
+          }),
+        close: () => Promise.resolve(),
+      };
+
+      const filter = createKositFilter({ runner: profileUnsupportedRunner });
+      await filter.onInit?.();
+
+      const context = createMockContext(VALID_XRECHNUNG_XML);
+      const result = await filter.execute(context);
+
+      // CRITICAL: status must be 'skipped', not 'failed'
+      expect(result.status).toBe('skipped');
+      expect(result.metadata?.['profileUnsupported']).toBe(true);
+      expect(result.metadata?.['reasonCode']).toBe('KOSIT_PROFILE_UNSUPPORTED');
+
+      await filter.onDestroy?.();
+    }
+  });
+
+  it('should consistently return failed status for regular validation errors', async () => {
+    // Run the same scenario multiple times to verify consistency
+    for (let i = 0; i < 3; i++) {
+      const validationErrorRunner = {
+        validate: () =>
+          Promise.resolve({
+            valid: false,
+            schemaValid: true,
+            schematronValid: false,
+            // Neither profileUnsupported nor systemError
+            items: [
+              {
+                ruleId: 'BR-01',
+                severity: 'error' as const,
+                message: 'Invoice number required',
+              },
+            ],
+            summary: { errors: 1, warnings: 0, information: 0 },
+            versionInfo: {
+              validatorVersion: '1.5.0-docker',
+              dictionaryVersion: 'xrechnung-3.0.2',
+            },
+            durationMs: 0,
+          }),
+        healthCheck: () => Promise.resolve(true),
+        getVersion: () => Promise.resolve('test/1.0.0'),
+        getVersionInfo: () =>
+          Promise.resolve({
+            validatorVersion: '1.5.0-docker',
+            dictionaryVersion: 'xrechnung-3.0.2',
+          }),
+        close: () => Promise.resolve(),
+      };
+
+      const filter = createKositFilter({ runner: validationErrorRunner });
+      await filter.onInit?.();
+
+      const context = createMockContext(VALID_XRECHNUNG_XML);
+      const result = await filter.execute(context);
+
+      // CRITICAL: status must be 'failed', not 'error' or 'skipped'
+      expect(result.status).toBe('failed');
+      expect(result.metadata?.['profileUnsupported']).toBeUndefined();
+      expect(result.metadata?.['systemError']).toBeUndefined();
+
+      await filter.onDestroy?.();
+    }
   });
 });

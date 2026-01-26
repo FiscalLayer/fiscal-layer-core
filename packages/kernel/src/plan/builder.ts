@@ -7,7 +7,7 @@ import { calculateConfigHash } from './hash.js';
 export function createDefaultPlan(): ExecutionPlan {
   const steps: ExecutionStep[] = [
     {
-      filterId: 'parser',
+      filterId: 'steps-parser',
       enabled: true,
       order: 10,
     },

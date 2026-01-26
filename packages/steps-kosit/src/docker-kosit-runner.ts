@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import * as crypto from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -12,6 +13,22 @@ import type {
   KositVersionInfo,
   KositSeverity,
 } from './types.js';
+
+/**
+ * Default patterns for detecting "no matching scenario" in 422 responses.
+ * These indicate the document profile is not supported (skippable).
+ */
+export const DEFAULT_NO_SCENARIO_PATTERNS = [
+  'no matching scenario',
+  'no scenario matched',
+  'scenario not found',
+  'cannot find scenario',
+  'unknown document type',
+  'unsupported document',
+  'no suitable scenario',
+  'could not determine scenario',
+  'kein passendes szenario', // German: no matching scenario
+];
 
 /**
  * Docker-specific configuration for KoSIT runner
@@ -60,6 +77,13 @@ export interface DockerKositRunnerConfig extends KositRunnerConfig {
    * @default '1.0'
    */
   cpuLimit?: string;
+
+  /**
+   * Patterns for detecting "no matching scenario" in 422 responses.
+   * Case-insensitive substring matching is used.
+   * @default DEFAULT_NO_SCENARIO_PATTERNS
+   */
+  noScenarioPatterns?: string[];
 }
 
 /**
@@ -98,24 +122,43 @@ export async function isDockerAvailable(): Promise<boolean> {
 
 /**
  * Check if the KoSIT daemon is healthy
+ * Includes retry logic for cold start scenarios (e.g., Cloud Run)
  */
-export async function checkDaemonHealth(url: string): Promise<boolean> {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => {
-      controller.abort();
-    }, 3000);
+export async function checkDaemonHealth(
+  url: string,
+  options?: { retries?: number; timeoutMs?: number; retryDelayMs?: number }
+): Promise<boolean> {
+  const retries = options?.retries ?? 3;
+  const timeoutMs = options?.timeoutMs ?? 10000; // 10 seconds for cold start
+  const retryDelayMs = options?.retryDelayMs ?? 2000;
 
-    const response = await fetch(`${url}/health`, {
-      method: 'GET',
-      signal: controller.signal,
-    });
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+      }, timeoutMs);
 
-    clearTimeout(timeoutId);
-    return response.ok;
-  } catch {
-    return false;
+      const response = await fetch(`${url}/health`, {
+        method: 'GET',
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+      if (response.ok) {
+        return true;
+      }
+    } catch {
+      // Retry on error
+    }
+
+    // Wait before retry (except on last attempt)
+    if (attempt < retries - 1) {
+      await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+    }
   }
+
+  return false;
 }
 
 /**
@@ -200,11 +243,26 @@ export function parseKositReport(reportXml: string): KositValidationResult {
     message?: ParsedMessage | ParsedMessage[];
   }
 
+  interface ParsedAssessment {
+    'rep:accept'?: unknown;
+    accept?: unknown;
+    'rep:reject'?: unknown;
+    reject?: unknown;
+  }
+
+  interface ParsedScenario {
+    'rep:name'?: string;
+    name?: string;
+    's:name'?: string;
+    's:scenario'?: { 's:name'?: string; name?: string };
+    scenario?: { 's:name'?: string; name?: string };
+  }
+
   interface ParsedReport {
-    'rep:assessment'?: { 'rep:accept'?: string | boolean; accept?: string | boolean };
-    assessment?: { 'rep:accept'?: string | boolean; accept?: string | boolean };
-    'rep:scenarioMatched'?: { 'rep:name'?: string; name?: string };
-    scenarioMatched?: { 'rep:name'?: string; name?: string };
+    'rep:assessment'?: ParsedAssessment;
+    assessment?: ParsedAssessment;
+    'rep:scenarioMatched'?: ParsedScenario;
+    scenarioMatched?: ParsedScenario;
     'rep:validationStepResult'?: ParsedStep | ParsedStep[];
     validationStepResult?: ParsedStep | ParsedStep[];
   }
@@ -248,18 +306,22 @@ export function parseKositReport(reportXml: string): KositValidationResult {
       (parsed as unknown as ParsedReport);
 
     // Extract acceptance status
+    // KoSIT uses <rep:accept> element for accepted documents and <rep:reject> for rejected
+    // The element contains child elements, so we check for existence, not equality
     const assessment = report['rep:assessment'] ?? report.assessment ?? {};
-    const accept =
-      assessment['rep:accept'] === 'true' ||
-      assessment.accept === 'true' ||
-      assessment['rep:accept'] === true ||
-      assessment.accept === true;
+    const hasAccept = assessment['rep:accept'] !== undefined || assessment.accept !== undefined;
+    const hasReject = assessment['rep:reject'] !== undefined || assessment.reject !== undefined;
+    const accept = hasAccept && !hasReject;
 
-    // Extract scenario name
+    // Extract scenario name (can be in various places depending on namespace handling)
     const scenarioMatched =
       report['rep:scenarioMatched'] ?? report.scenarioMatched ?? {};
+    const innerScenario = scenarioMatched['s:scenario'] ?? scenarioMatched.scenario;
     const scenarioName: string =
+      innerScenario?.['s:name'] ??
+      innerScenario?.name ??
       scenarioMatched['rep:name'] ??
+      scenarioMatched['s:name'] ??
       scenarioMatched.name ??
       'unknown';
 
@@ -447,6 +509,18 @@ function sanitizeMessage(message: string): string {
  * });
  * ```
  */
+/**
+ * Logger interface for 422 classification observability
+ */
+export interface Kosit422Logger {
+  info(message: string, context?: Record<string, unknown>): void;
+}
+
+/**
+ * Classification result for HTTP 422 responses
+ */
+export type Kosit422Classification = 'no_scenario' | 'system_error';
+
 export class DockerKositRunner implements KositRunner {
   private readonly config: Required<
     Pick<DockerKositRunnerConfig, 'mode' | 'daemonUrl' | 'daemonImage' | 'cliImage' | 'memoryLimit' | 'cpuLimit' | 'timeoutMs'>
@@ -458,6 +532,8 @@ export class DockerKositRunner implements KositRunner {
   private daemonHealthy: boolean | null = null;
   private lastHealthCheck = 0;
   private readonly healthCheckInterval = 30000; // 30 seconds
+  private readonly noScenarioPatterns: string[];
+  private logger: Kosit422Logger | null = null;
 
   constructor(config: DockerKositRunnerConfig = {}) {
     this.config = {
@@ -470,6 +546,15 @@ export class DockerKositRunner implements KositRunner {
       timeoutMs: 30000,
       ...config,
     };
+    this.noScenarioPatterns = config.noScenarioPatterns ?? DEFAULT_NO_SCENARIO_PATTERNS;
+  }
+
+  /**
+   * Set logger for 422 classification observability.
+   * The logger should be a safe logger that scrubs PII.
+   */
+  setLogger(logger: Kosit422Logger): void {
+    this.logger = logger;
   }
 
   /**
@@ -529,6 +614,12 @@ export class DockerKositRunner implements KositRunner {
 
   /**
    * Validate using the daemon HTTP API
+   *
+   * KoSIT daemon HTTP semantics:
+   * - 200 OK: Document accepted (valid)
+   * - 406 Not Acceptable: Document rejected (invalid but scenario matched) - still has report
+   * - 422 Unprocessable Entity: No matching scenario found
+   * - Other 4xx/5xx: Actual HTTP errors
    */
   private async validateViaDaemon(
     xml: string,
@@ -544,6 +635,7 @@ export class DockerKositRunner implements KositRunner {
         method: 'POST',
         headers: {
           'Content-Type': 'application/xml',
+          'Accept': 'application/xml',
         },
         body: xml,
         signal: controller.signal,
@@ -551,40 +643,62 @@ export class DockerKositRunner implements KositRunner {
 
       clearTimeout(timeoutId);
 
-      if (!response.ok) {
-        return {
-          valid: false,
-          schemaValid: false,
-          schematronValid: false,
-          items: [
-            {
-              ruleId: 'KOSIT-HTTP-ERROR',
-              severity: 'error',
-              message: `HTTP error: ${String(response.status)} ${response.statusText}`,
-            },
-          ],
-          summary: { errors: 1, warnings: 0, information: 0 },
-          versionInfo: {
-            validatorVersion: '0.0.0-error',
-            dictionaryVersion: 'unknown',
-          },
-          durationMs: 0,
-        };
-      }
-
       const contentType = response.headers.get('content-type') ?? '';
       const body = await response.text();
 
-      // Parse response based on content type
-      if (contentType.includes('application/xml') || contentType.includes('text/xml')) {
-        return parseKositReport(body);
-      } else if (contentType.includes('application/json')) {
-        // Some implementations return JSON
-        return this.parseJsonResponse(body);
-      } else {
-        // Try XML parsing as fallback
-        return parseKositReport(body);
+      // HTTP 200: Document accepted (valid)
+      // HTTP 406: Document rejected (invalid but scenario matched) - parse the report
+      if (response.status === 200 || response.status === 406) {
+        // Parse response based on content type
+        if (contentType.includes('application/xml') || contentType.includes('text/xml')) {
+          const result = parseKositReport(body);
+          // For 406, ensure valid=false even if parsing doesn't catch it
+          if (response.status === 406) {
+            result.valid = false;
+          }
+          return result;
+        } else if (contentType.includes('application/json')) {
+          // Some implementations return JSON
+          const result = this.parseJsonResponse(body);
+          if (response.status === 406) {
+            result.valid = false;
+          }
+          return result;
+        } else {
+          // Try XML parsing as fallback
+          const result = parseKositReport(body);
+          if (response.status === 406) {
+            result.valid = false;
+          }
+          return result;
+        }
       }
+
+      // HTTP 422: Could be "no matching scenario" OR other processing errors
+      // We need to inspect the response body to determine which case
+      if (response.status === 422) {
+        return this.parse422Response(body);
+      }
+
+      // Other HTTP errors (4xx/5xx)
+      return {
+        valid: false,
+        schemaValid: false,
+        schematronValid: false,
+        items: [
+          {
+            ruleId: 'KOSIT-HTTP-ERROR',
+            severity: 'error',
+            message: `HTTP error: ${String(response.status)} ${response.statusText}`,
+          },
+        ],
+        summary: { errors: 1, warnings: 0, information: 0 },
+        versionInfo: {
+          validatorVersion: '0.0.0-error',
+          dictionaryVersion: 'unknown',
+        },
+        durationMs: 0,
+      };
     } catch (error) {
       clearTimeout(timeoutId);
 
@@ -711,6 +825,116 @@ export class DockerKositRunner implements KositRunner {
         durationMs: 0,
       };
     }
+  }
+
+  /**
+   * Parse HTTP 422 response to determine if it's "no matching scenario" or a system error.
+   *
+   * KoSIT daemon returns 422 for:
+   * 1. No matching scenario found (profile unsupported) - skippable
+   * 2. XML parsing/processing errors - should be treated as system error
+   *
+   * We detect "no matching scenario" by looking for specific patterns in the response.
+   */
+  private parse422Response(body: string): KositValidationResult {
+    const lowerBody = body.toLowerCase();
+
+    // Check if this is a "no matching scenario" case using configurable patterns
+    const isNoScenario = this.noScenarioPatterns.some((pattern) =>
+      lowerBody.includes(pattern.toLowerCase())
+    );
+
+    // Classify and log
+    const classification: Kosit422Classification = isNoScenario ? 'no_scenario' : 'system_error';
+    this.log422Classification(classification, body);
+
+    if (isNoScenario) {
+      // This is a profile unsupported case - skippable, not a hard failure
+      return {
+        valid: false,
+        schemaValid: false,
+        schematronValid: false,
+        profileUnsupported: true,
+        items: [
+          {
+            ruleId: 'KOSIT-PROFILE-UNSUPPORTED',
+            severity: 'warning',
+            message: 'No matching validation scenario found for this document profile',
+          },
+        ],
+        summary: { errors: 0, warnings: 1, information: 0 },
+        versionInfo: {
+          validatorVersion: '1.5.0-docker',
+          dictionaryVersion: 'xrechnung-3.0.2',
+        },
+        durationMs: 0,
+      };
+    }
+
+    // Patterns that indicate XML/parsing errors
+    const parsingErrorPatterns = [
+      'xml',
+      'parse',
+      'malformed',
+      'invalid',
+      'syntax',
+      'encoding',
+      'well-formed',
+      'schema',
+    ];
+
+    const isParsingError = parsingErrorPatterns.some((pattern) =>
+      lowerBody.includes(pattern)
+    );
+
+    // Extract a sanitized error message from the response
+    let errorMessage = 'KoSIT processing error';
+    if (body.length > 0 && body.length <= 500) {
+      // Use a sanitized version of the response as additional context
+      errorMessage = sanitizeMessage(body.substring(0, 200));
+    }
+
+    // This is a system error (XML malformed, internal error, etc.)
+    return {
+      valid: false,
+      schemaValid: false,
+      schematronValid: false,
+      systemError: true,
+      items: [
+        {
+          ruleId: isParsingError ? 'KOSIT-PARSE-ERROR' : 'KOSIT-SYSTEM-ERROR',
+          severity: 'error',
+          message: isParsingError
+            ? `XML parsing or validation error: ${errorMessage}`
+            : `KoSIT system error: ${errorMessage}`,
+        },
+      ],
+      summary: { errors: 1, warnings: 0, information: 0 },
+      versionInfo: {
+        validatorVersion: '1.5.0-docker',
+        dictionaryVersion: 'xrechnung-3.0.2',
+      },
+      durationMs: 0,
+    };
+  }
+
+  /**
+   * Log 422 classification for observability.
+   * Does NOT log the response body to avoid PII leakage.
+   */
+  private log422Classification(classification: Kosit422Classification, body: string): void {
+    if (!this.logger) {
+      return;
+    }
+
+    // Compute SHA-256 hash of body for debugging without exposing content
+    const bodyHash = crypto.createHash('sha256').update(body).digest('hex').substring(0, 16);
+
+    this.logger.info('KoSIT 422 response classified', {
+      kosit422Class: classification,
+      bodyLen: body.length,
+      bodyHash: `sha256:${bodyHash}`,
+    });
   }
 
   /**

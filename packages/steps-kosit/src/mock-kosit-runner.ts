@@ -142,11 +142,10 @@ export class MockKositRunner implements KositRunner {
       });
     }
 
-    // Check for basic invoice structure
+    // Check for basic invoice structure (with optional namespace prefix)
     const hasInvoiceRoot =
-      /<Invoice\b/i.test(xml) ||
-      /<CrossIndustryInvoice\b/i.test(xml) ||
-      /<ubl:Invoice\b/i.test(xml);
+      /<(?:[a-z]+:)?Invoice\b/i.test(xml) ||
+      /<(?:[a-z]+:)?CrossIndustryInvoice\b/i.test(xml);
 
     if (!hasInvoiceRoot) {
       items.push({

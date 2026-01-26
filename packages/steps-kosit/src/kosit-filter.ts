@@ -182,8 +182,15 @@ export function createKositFilter(config: KositFilterConfig = {}): Filter {
         diagnostics.push(...kositDiagnostics);
 
         // Determine status
+        // Priority: systemError > profileUnsupported > validation result
         let status: StepResult['status'];
-        if (!result.valid) {
+        if (result.systemError === true) {
+          // System error (XML parse error, service error) - hard failure
+          status = 'error';
+        } else if (result.profileUnsupported === true) {
+          // Document profile not supported - skip validation, don't fail
+          status = 'skipped';
+        } else if (!result.valid) {
           status = 'failed';
         } else if (result.summary.warnings > 0 && config.failOnWarnings) {
           status = 'failed';
@@ -193,24 +200,43 @@ export function createKositFilter(config: KositFilterConfig = {}): Filter {
           status = 'passed';
         }
 
+        // Build metadata
+        const metadata: Record<string, unknown> = {
+          profile: result.profile,
+          validatorVersion: result.versionInfo.validatorVersion,
+          scenarioName: result.scenarioName,
+          schemaValid: result.schemaValid,
+          schematronValid: result.schematronValid,
+          summary: result.summary,
+        };
+
+        // Add profile unsupported info for skipped status
+        if (result.profileUnsupported === true) {
+          metadata['profileUnsupported'] = true;
+          metadata['reasonCode'] = 'KOSIT_PROFILE_UNSUPPORTED';
+        }
+
+        // Add system error info for error status
+        if (result.systemError === true) {
+          metadata['systemError'] = true;
+          metadata['reasonCode'] = 'KOSIT_SYSTEM_ERROR';
+        }
+
+        if (config.includeRawOutput && result.rawOutput) {
+          metadata['rawOutput'] = result.rawOutput;
+        }
+
+        if (fallbackEvent) {
+          metadata['fallbackEvent'] = fallbackEvent;
+        }
+
         return {
           filterId: 'kosit',
           filterVersion: '1.0.0',
           status,
           diagnostics,
           durationMs: Date.now() - startTime,
-          metadata: {
-            profile: result.profile,
-            validatorVersion: result.versionInfo.validatorVersion,
-            scenarioName: result.scenarioName,
-            schemaValid: result.schemaValid,
-            schematronValid: result.schematronValid,
-            summary: result.summary,
-            ...(config.includeRawOutput && result.rawOutput
-              ? { rawOutput: result.rawOutput }
-              : {}),
-            ...(fallbackEvent ? { fallbackEvent } : {}),
-          },
+          metadata,
         };
       } catch (error) {
         const err = error as Error;

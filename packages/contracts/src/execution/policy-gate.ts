@@ -74,7 +74,10 @@ export type DecisionReasonCode =
   | 'POLICY_OVERRIDE' // Manual policy override applied
   | 'DEFAULT_ALLOW' // No issues found, default allow
   // Billing
-  | 'BILLING_LIMIT_EXCEEDED'; // Monthly usage limit reached
+  | 'BILLING_LIMIT_EXCEEDED' // Monthly usage limit reached
+  // KoSIT Validator
+  | 'KOSIT_PROFILE_UNSUPPORTED' // Document profile/format not supported by KoSIT validator config
+  | 'KOSIT_SYSTEM_ERROR'; // KoSIT internal error (malformed XML, service error, etc.)
 
 /**
  * Configuration for the PolicyGate filter.
@@ -278,6 +281,8 @@ export function isDecisionReasonCode(value: unknown): value is DecisionReasonCod
     'POLICY_OVERRIDE',
     'DEFAULT_ALLOW',
     'BILLING_LIMIT_EXCEEDED',
+    'KOSIT_PROFILE_UNSUPPORTED',
+    'KOSIT_SYSTEM_ERROR',
   ];
   return typeof value === 'string' && validCodes.includes(value as DecisionReasonCode);
 }
