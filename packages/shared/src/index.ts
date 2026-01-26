@@ -67,3 +67,11 @@ export {
   type VatIdValidationResult,
   type VatIdErrorCode,
 } from './vat/index.js';
+
+// Diagnostics summary
+export {
+  buildDiagnosticsSummary,
+  type DiagnosticsSummaryOptions,
+  type DiagnosticsSummary,
+  type TopRuleEntry,
+} from './diagnostics/index.js';
