@@ -235,6 +235,7 @@ export function parseKositReport(reportXml: string): KositValidationResult {
   }
 
   interface ParsedStep {
+    '@_valid'?: string | boolean;
     'rep:valid'?: string | boolean;
     valid?: string | boolean;
     '@_id'?: string;
@@ -256,6 +257,9 @@ export function parseKositReport(reportXml: string): KositValidationResult {
     's:name'?: string;
     's:scenario'?: { 's:name'?: string; name?: string };
     scenario?: { 's:name'?: string; name?: string };
+    // validationStepResult can be inside scenarioMatched in KoSIT reports
+    'rep:validationStepResult'?: ParsedStep | ParsedStep[];
+    validationStepResult?: ParsedStep | ParsedStep[];
   }
 
   interface ParsedReport {
@@ -326,11 +330,15 @@ export function parseKositReport(reportXml: string): KositValidationResult {
       'unknown';
 
     // Extract validation step results
+    // Note: validationStepResult can be either directly under report OR inside scenarioMatched
     const items: KositValidationItem[] = [];
     let schemaValid = true;
     let schematronValid = true;
 
-    const stepResults = report['rep:validationStepResult'] ??
+    const stepResults =
+      scenarioMatched['rep:validationStepResult'] ??
+      scenarioMatched.validationStepResult ??
+      report['rep:validationStepResult'] ??
       report.validationStepResult;
     const stepResultsArray: ParsedStep[] = Array.isArray(stepResults)
       ? stepResults
@@ -339,18 +347,27 @@ export function parseKositReport(reportXml: string): KositValidationResult {
         : [];
 
     for (const step of stepResultsArray) {
+      // Check valid attribute - XMLParser with attributeNamePrefix='@_' puts it in @_valid
       const stepValid =
+        step['@_valid'] === 'true' ||
+        step['@_valid'] === true ||
         step['rep:valid'] === 'true' ||
         step.valid === 'true' ||
         step['rep:valid'] === true ||
         step.valid === true;
 
       // Determine if this is schema or schematron step
+      // KoSIT uses IDs like: val-xsd (schema), val-sch.1, val-sch.2 (schematron)
       const stepId: string = step['@_id'] ?? step['rep:id'] ?? '';
-      if (stepId.toLowerCase().includes('schema') && !stepValid) {
+      const stepIdLower = stepId.toLowerCase();
+      const isSchemaStep = stepIdLower.includes('xsd') || stepIdLower.includes('xml') ||
+        (stepIdLower.includes('schema') && !stepIdLower.includes('schematron'));
+      const isSchematronStep = stepIdLower.includes('sch') || stepIdLower.includes('schematron');
+
+      if (isSchemaStep && !stepValid) {
         schemaValid = false;
       }
-      if (stepId.toLowerCase().includes('schematron') && !stepValid) {
+      if (isSchematronStep && !stepValid) {
         schematronValid = false;
       }
 
@@ -449,6 +466,25 @@ function sanitizeCode(code: string): string {
  */
 function sanitizeMessage(message: string): string {
   let sanitized = message;
+
+  // Remove XML elements with their content (privacy: may contain field values)
+  // e.g., <cbc:InvoiceNumber>INV-001</cbc:InvoiceNumber> -> [XML:REDACTED]
+  sanitized = sanitized.replace(
+    /<[a-zA-Z][a-zA-Z0-9:_-]*[^>]*>[^<]*<\/[a-zA-Z][a-zA-Z0-9:_-]*>/g,
+    '[XML:REDACTED]'
+  );
+
+  // Remove self-closing XML tags
+  sanitized = sanitized.replace(
+    /<[a-zA-Z][a-zA-Z0-9:_-]*[^>]*\/>/g,
+    ''
+  );
+
+  // Remove remaining XML-like opening/closing tags without content
+  sanitized = sanitized.replace(
+    /<\/?[a-zA-Z][a-zA-Z0-9:_-]*[^>]*>/g,
+    ''
+  );
 
   // Remove potential IBAN patterns
   sanitized = sanitized.replace(

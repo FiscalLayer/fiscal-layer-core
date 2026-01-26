@@ -1045,3 +1045,196 @@ describe('StepStatus stability for KoSIT errors', () => {
     }
   });
 });
+
+describe('Privacy redline: diagnostics must not contain PII', () => {
+  it('should not include raw XML in diagnostic messages', () => {
+    const result = parseKositReport(`<?xml version="1.0"?>
+<rep:report xmlns:rep="http://www.xoev.de/de/validator/report/1">
+  <rep:assessment><rep:reject/></rep:assessment>
+  <rep:scenarioMatched>
+    <rep:validationStepResult id="val-sch.1" valid="false">
+      <rep:message level="error" code="BR-01">
+        Missing required element: &lt;cbc:InvoiceNumber&gt;INV-2024-001&lt;/cbc:InvoiceNumber&gt;
+      </rep:message>
+    </rep:validationStepResult>
+  </rep:scenarioMatched>
+</rep:report>`);
+
+    for (const item of result.items) {
+      // Messages should NOT contain raw XML elements
+      expect(item.message).not.toMatch(/<cbc:[^>]+>/);
+      expect(item.message).not.toMatch(/<\/cbc:[^>]+>/);
+    }
+  });
+
+  it('should not expose email addresses in diagnostic messages', () => {
+    const result = parseKositReport(`<?xml version="1.0"?>
+<rep:report xmlns:rep="http://www.xoev.de/de/validator/report/1">
+  <rep:assessment><rep:reject/></rep:assessment>
+  <rep:scenarioMatched>
+    <rep:validationStepResult id="val-sch.1" valid="false">
+      <rep:message level="error" code="BR-DE-02">
+        Invalid email format: test@example.com
+      </rep:message>
+    </rep:validationStepResult>
+  </rep:scenarioMatched>
+</rep:report>`);
+
+    for (const item of result.items) {
+      // Messages should not contain email patterns after sanitization
+      // Note: sanitizeMessage strips emails
+      expect(item.message).not.toMatch(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    }
+  });
+
+  it('should not expose IBAN in diagnostic messages', () => {
+    const result = parseKositReport(`<?xml version="1.0"?>
+<rep:report xmlns:rep="http://www.xoev.de/de/validator/report/1">
+  <rep:assessment><rep:reject/></rep:assessment>
+  <rep:scenarioMatched>
+    <rep:validationStepResult id="val-sch.1" valid="false">
+      <rep:message level="error" code="BR-DE-06">
+        Payment account invalid: DE89370400440532013000
+      </rep:message>
+    </rep:validationStepResult>
+  </rep:scenarioMatched>
+</rep:report>`);
+
+    for (const item of result.items) {
+      // Messages should not contain IBAN patterns
+      expect(item.message).not.toMatch(/[A-Z]{2}\d{2}[A-Z0-9]{4,}/);
+    }
+  });
+
+  it('should not expose VAT IDs in diagnostic messages', () => {
+    const result = parseKositReport(`<?xml version="1.0"?>
+<rep:report xmlns:rep="http://www.xoev.de/de/validator/report/1">
+  <rep:assessment><rep:reject/></rep:assessment>
+  <rep:scenarioMatched>
+    <rep:validationStepResult id="val-sch.1" valid="false">
+      <rep:message level="error" code="BR-DE-01">
+        Invalid VAT ID: DE123456789
+      </rep:message>
+    </rep:validationStepResult>
+  </rep:scenarioMatched>
+</rep:report>`);
+
+    for (const item of result.items) {
+      // Messages should not contain German VAT ID patterns
+      expect(item.message).not.toMatch(/DE\d{9}/);
+    }
+  });
+
+  it('diagnostics should only contain structured fields (code, severity, location)', async () => {
+    const validationRejectionRunner = {
+      validate: () =>
+        Promise.resolve({
+          valid: false,
+          schemaValid: true,
+          schematronValid: false,
+          items: [
+            {
+              ruleId: 'BR-CO-25',
+              severity: 'error' as const,
+              message: 'Payment due date required',
+              location: '/rsm:CrossIndustryInvoice/rsm:SupplyChainTradeTransaction',
+            },
+          ],
+          summary: { errors: 1, warnings: 0, information: 0 },
+          versionInfo: {
+            validatorVersion: '1.5.0-docker',
+            dictionaryVersion: 'xrechnung-3.0.2',
+          },
+          scenarioName: 'EN16931 CII',
+          durationMs: 50,
+        }),
+      healthCheck: () => Promise.resolve(true),
+      getVersion: () => Promise.resolve('test/1.0.0'),
+      getVersionInfo: () =>
+        Promise.resolve({
+          validatorVersion: '1.5.0-docker',
+          dictionaryVersion: 'xrechnung-3.0.2',
+        }),
+      close: () => Promise.resolve(),
+    };
+
+    const filter = createKositFilter({ runner: validationRejectionRunner });
+    await filter.onInit?.();
+
+    const context = createMockContext(VALID_XRECHNUNG_XML);
+    const result = await filter.execute(context);
+
+    // Verify diagnostics have expected structure
+    expect(result.diagnostics.length).toBeGreaterThan(0);
+    for (const diag of result.diagnostics) {
+      expect(diag.code).toBeDefined();
+      expect(diag.severity).toBeDefined();
+      expect(['error', 'warning', 'info', 'hint']).toContain(diag.severity);
+      // Should NOT have rawValue, rawMessage, or raw XML content
+      const diagObj = diag as unknown as Record<string, unknown>;
+      expect(diagObj['rawValue']).toBeUndefined();
+      expect(diagObj['rawMessage']).toBeUndefined();
+      expect(diagObj['rawXml']).toBeUndefined();
+    }
+
+    await filter.onDestroy?.();
+  });
+});
+
+describe('KoSIT diagnostics propagation on pipeline abort', () => {
+  it('should return diagnostics with rule codes even when validation fails', async () => {
+    // This test verifies that when KoSIT returns 406 (validation rejected),
+    // the diagnostics (rule codes like BR-CO-25) are properly extracted
+    // and returned in the StepResult
+    const validationRejectionRunner = {
+      validate: () =>
+        Promise.resolve({
+          valid: false,
+          schemaValid: true,
+          schematronValid: false,
+          items: [
+            {
+              ruleId: 'PEPPOL-EN16931-R008',
+              severity: 'error' as const,
+              message: 'Document MUST not contain empty elements.',
+              location: '/Invoice/cac:AccountingCustomerParty[1]/cac:Party[1]/cbc:EndpointID[1]',
+            },
+          ],
+          summary: { errors: 1, warnings: 0, information: 0 },
+          versionInfo: {
+            validatorVersion: '1.5.0-docker',
+            dictionaryVersion: 'xrechnung-3.0.2',
+          },
+          scenarioName: 'EN16931 XRechnung (UBL Invoice)',
+          durationMs: 100,
+        }),
+      healthCheck: () => Promise.resolve(true),
+      getVersion: () => Promise.resolve('test/1.0.0'),
+      getVersionInfo: () =>
+        Promise.resolve({
+          validatorVersion: '1.5.0-docker',
+          dictionaryVersion: 'xrechnung-3.0.2',
+        }),
+      close: () => Promise.resolve(),
+    };
+
+    const filter = createKositFilter({ runner: validationRejectionRunner });
+    await filter.onInit?.();
+
+    const context = createMockContext(VALID_XRECHNUNG_XML);
+    const result = await filter.execute(context);
+
+    // CRITICAL: Even though validation failed, diagnostics MUST be present
+    // This is essential for the pipeline to include them in the final report
+    expect(result.status).toBe('failed');
+    expect(result.diagnostics.length).toBeGreaterThan(0);
+
+    // Verify the specific rule code is present
+    const ruleCodeDiag = result.diagnostics.find((d) => d.code === 'PEPPOL-EN16931-R008');
+    expect(ruleCodeDiag).toBeDefined();
+    expect(ruleCodeDiag?.severity).toBe('error');
+    expect(ruleCodeDiag?.location).toBeDefined();
+
+    await filter.onDestroy?.();
+  });
+});
