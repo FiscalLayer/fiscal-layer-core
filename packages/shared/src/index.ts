@@ -48,3 +48,22 @@ export {
   DEFAULT_DECIMAL_PLACES,
   MAX_DECIMAL_PLACES,
 } from './decimal/decimal-utils.js';
+
+// VAT ID validation (OSS - offline syntax check only)
+export {
+  // Constants
+  EU_COUNTRY_CODES,
+  EU_COUNTRY_CODE_SET,
+  VAT_ID_PATTERNS,
+  COUNTRY_NAMES,
+  type EUCountryCode,
+  // Functions
+  normalizeVatId,
+  extractCountryCode,
+  extractVatNumber,
+  validateVatIdFormat,
+  isEUCountryCode,
+  getCountryName,
+  type VatIdValidationResult,
+  type VatIdErrorCode,
+} from './vat/index.js';
