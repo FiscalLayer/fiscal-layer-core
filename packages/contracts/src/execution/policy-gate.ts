@@ -77,7 +77,9 @@ export type DecisionReasonCode =
   | 'BILLING_LIMIT_EXCEEDED' // Monthly usage limit reached
   // KoSIT Validator
   | 'KOSIT_PROFILE_UNSUPPORTED' // Document profile/format not supported by KoSIT validator config
-  | 'KOSIT_SYSTEM_ERROR'; // KoSIT internal error (malformed XML, service error, etc.)
+  | 'KOSIT_SYSTEM_ERROR' // KoSIT internal error (malformed XML, service error, etc.)
+  // Demo mode
+  | 'DEMO_VALIDATION_DEGRADED'; // Demo mode with degraded validation (KoSIT unavailable, etc.)
 
 /**
  * Configuration for the PolicyGate filter.
@@ -283,6 +285,7 @@ export function isDecisionReasonCode(value: unknown): value is DecisionReasonCod
     'BILLING_LIMIT_EXCEEDED',
     'KOSIT_PROFILE_UNSUPPORTED',
     'KOSIT_SYSTEM_ERROR',
+    'DEMO_VALIDATION_DEGRADED',
   ];
   return typeof value === 'string' && validCodes.includes(value as DecisionReasonCode);
 }
