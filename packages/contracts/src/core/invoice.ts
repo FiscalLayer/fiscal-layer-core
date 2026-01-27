@@ -1,7 +1,10 @@
 /**
  * Supported invoice formats
+ *
+ * Note: PDF is treated as a single format type. The distinction between
+ * pdf-text and pdf-scanned is tracked via DocumentNature in extensions.
  */
-export type InvoiceFormat = 'xrechnung' | 'zugferd' | 'peppol-bis' | 'ubl' | 'cii' | 'unknown';
+export type InvoiceFormat = 'xrechnung' | 'zugferd' | 'peppol-bis' | 'ubl' | 'cii' | 'pdf' | 'unknown';
 
 /**
  * Raw invoice input before parsing
@@ -10,8 +13,13 @@ export interface RawInvoice {
   /** Original content (XML or JSON string) */
   content: string;
 
-  /** Content type hint */
-  contentType?: 'application/xml' | 'application/json' | 'text/xml';
+  /**
+   * Content type hint
+   *
+   * For PDF files, content should be base64-encoded with optional
+   * 'data:application/pdf;base64,' prefix.
+   */
+  contentType?: 'application/xml' | 'application/json' | 'text/xml' | 'application/pdf';
 
   /** Format hint (if known by caller) */
   formatHint?: InvoiceFormat;

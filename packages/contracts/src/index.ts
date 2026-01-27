@@ -11,6 +11,7 @@
 export * from './core/invoice.js';
 export * from './core/diagnostic.js';
 export * from './core/canonical-invoice.js';
+export * from './core/document-nature.js';
 
 // Pipeline interfaces
 export * from './pipeline/filter.js';
