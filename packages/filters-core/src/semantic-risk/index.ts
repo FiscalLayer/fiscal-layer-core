@@ -50,7 +50,7 @@ export const semanticRiskFilter: Filter = {
     if (!invoice) {
       return {
         filterId: 'semantic-risk',
-        status: 'skipped',
+        execution: 'skipped',
         diagnostics: [
           {
             code: 'SEM-SKIP-001',
@@ -80,12 +80,11 @@ export const semanticRiskFilter: Filter = {
     const riskDiagnostics = checkRiskPatterns(invoice);
     diagnostics.push(...riskDiagnostics);
 
-    const hasErrors = diagnostics.some((d) => d.severity === 'error');
-    const hasWarnings = diagnostics.some((d) => d.severity === 'warning');
+    // NOTE: Legacy status no longer set - decision layer derives from diagnostics
 
     return {
       filterId: 'semantic-risk',
-      status: hasErrors ? 'failed' : hasWarnings ? 'warning' : 'passed',
+      execution: 'ran', // Step completed, decision from diagnostics
       diagnostics,
       durationMs: Date.now() - startTime,
       metadata: {

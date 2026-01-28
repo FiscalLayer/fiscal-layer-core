@@ -9,11 +9,56 @@ import type {
   ExecutionPlan,
 } from '@fiscal-layer/contracts';
 
-interface ContextInit {
+/**
+ * Clock interface for injectable time source.
+ * Allows deterministic testing and reproducible audits.
+ */
+export interface Clock {
+  now(): Date;
+}
+
+/**
+ * IdGenerator interface for injectable ID generation.
+ * Allows deterministic testing and reproducible audits.
+ */
+export interface IdGenerator {
+  /** Generate a unique identifier */
+  generate(prefix?: string): string;
+}
+
+/**
+ * Default clock implementation using system time.
+ */
+export const defaultClock: Clock = {
+  now: () => new Date(),
+};
+
+/**
+ * Default ID generator using timestamp + crypto random.
+ */
+export const defaultIdGenerator: IdGenerator = {
+  generate: (prefix?: string) => {
+    const timestamp = Date.now().toString(36);
+    const random = globalThis.crypto.randomUUID().slice(0, 8);
+    return prefix ? `${prefix}-${timestamp}-${random}` : `${timestamp}-${random}`;
+  },
+};
+
+export interface ContextInit {
   invoice: RawInvoice;
   options: ValidationOptions;
   plan: ExecutionPlan;
   correlationId?: string;
+  /**
+   * Optional clock for deterministic testing.
+   * Defaults to system clock.
+   */
+  clock?: Clock;
+  /**
+   * Optional ID generator for deterministic testing.
+   * Defaults to timestamp + crypto random.
+   */
+  idGenerator?: IdGenerator;
 }
 
 /**
@@ -35,9 +80,12 @@ export class ValidationContextImpl implements MutableValidationContext {
   private _filterConfigs: Map<string, Record<string, unknown>> = new Map();
 
   constructor(init: ContextInit) {
-    this.runId = this.generateRunId();
+    const clock = init.clock ?? defaultClock;
+    const idGenerator = init.idGenerator ?? defaultIdGenerator;
+
+    this.runId = idGenerator.generate('run');
     this.correlationId = init.correlationId ?? this.runId;
-    this.startedAt = new Date().toISOString();
+    this.startedAt = clock.now().toISOString();
     this.rawInvoice = init.invoice;
     this.options = init.options;
     this.executionPlan = init.plan;
@@ -48,12 +96,6 @@ export class ValidationContextImpl implements MutableValidationContext {
         this._filterConfigs.set(step.filterId, step.config);
       }
     }
-  }
-
-  private generateRunId(): string {
-    const timestamp = Date.now().toString(36);
-    const random = Math.random().toString(36).substring(2, 8);
-    return `run-${timestamp}-${random}`;
   }
 
   private flattenSteps(

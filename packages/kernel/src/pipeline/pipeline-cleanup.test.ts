@@ -1,10 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Pipeline } from './pipeline.js';
 import { PluginRegistryImpl } from '../registry/registry.js';
-import { createDefaultPlan } from '../plan/builder.js';
 import type {
   Filter,
   StepResult,
+  StepStatus,
+  ExecutionStatus,
+  ExecutionPlan,
   PipelineCleanupEnforcer,
   PipelineCleanupConfig,
   PipelineCleanupContext,
@@ -13,10 +15,55 @@ import type {
   CleanupQueue,
 } from '@fiscal-layer/contracts';
 
+/**
+ * Create a test plan that matches the mock filters registered in tests.
+ * This avoids "filter not found" errors that occur with createTestPlan().
+ */
+function createTestPlan(): ExecutionPlan {
+  return {
+    id: 'test-plan',
+    version: '1.0.0',
+    steps: [
+      { filterId: 'parser', enabled: true, order: 10 },
+      { filterId: 'kosit', enabled: true, order: 20 },
+      {
+        filterId: 'live-verifiers',
+        enabled: true,
+        order: 30,
+        parallel: true,
+        children: [
+          { filterId: 'vies', enabled: true },
+          { filterId: 'ecb-rates', enabled: true },
+          { filterId: 'peppol', enabled: true },
+        ],
+      },
+      { filterId: 'semantic-risk', enabled: true, order: 40 },
+      { filterId: 'fingerprint', enabled: true, order: 50 },
+    ],
+    configHash: 'test-hash',
+    createdAt: new Date().toISOString(),
+  };
+}
+
+// Helper to map status to execution
+function statusToExecution(status: StepStatus): ExecutionStatus {
+  switch (status) {
+    case 'passed':
+    case 'failed':
+    case 'warning':
+      return 'ran';
+    case 'skipped':
+      return 'skipped';
+    case 'timeout':
+    case 'error':
+      return 'errored';
+  }
+}
+
 // Mock filter for testing
 const createMockFilter = (
   id: string,
-  status: StepResult['status'] = 'passed',
+  status: StepStatus = 'passed',
   shouldThrow = false,
 ): Filter => ({
   id,
@@ -26,10 +73,18 @@ const createMockFilter = (
     if (shouldThrow) {
       return Promise.reject(new Error(`Filter ${id} intentionally failed`));
     }
+    // In the new model, validation failures produce error diagnostics
+    const diagnostics =
+      status === 'failed'
+        ? [{ code: `${id.toUpperCase()}-001`, severity: 'error' as const, message: 'Mock validation error', category: 'schema' as const, source: id }]
+        : status === 'warning'
+          ? [{ code: `${id.toUpperCase()}-002`, severity: 'warning' as const, message: 'Mock validation warning', category: 'business-rule' as const, source: id }]
+          : [];
+
     return Promise.resolve({
       filterId: id,
-      status,
-      diagnostics: [],
+      execution: statusToExecution(status),
+      diagnostics,
       durationMs: 10,
     });
   },
@@ -182,7 +237,7 @@ describe('Pipeline Finally Cleanup (Redline Tests)', () => {
     it('should call cleanup enforcer on successful pipeline execution', async () => {
       const pipeline = new Pipeline({
         registry,
-        defaultPlan: createDefaultPlan(),
+        defaultPlan: createTestPlan(),
         cleanupEnforcer,
       });
 
@@ -206,7 +261,7 @@ describe('Pipeline Finally Cleanup (Redline Tests)', () => {
 
       const pipeline = new Pipeline({
         registry,
-        defaultPlan: createDefaultPlan(),
+        defaultPlan: createTestPlan(),
         cleanupEnforcer,
       });
 
@@ -229,7 +284,7 @@ describe('Pipeline Finally Cleanup (Redline Tests)', () => {
 
       const pipeline = new Pipeline({
         registry,
-        defaultPlan: createDefaultPlan(),
+        defaultPlan: createTestPlan(),
         cleanupEnforcer,
       });
 
@@ -247,7 +302,7 @@ describe('Pipeline Finally Cleanup (Redline Tests)', () => {
     it('should attempt to delete raw-invoice key after pipeline execution', async () => {
       const pipeline = new Pipeline({
         registry,
-        defaultPlan: createDefaultPlan(),
+        defaultPlan: createTestPlan(),
         cleanupEnforcer,
       });
 
@@ -265,7 +320,7 @@ describe('Pipeline Finally Cleanup (Redline Tests)', () => {
 
       const pipeline = new Pipeline({
         registry,
-        defaultPlan: createDefaultPlan(),
+        defaultPlan: createTestPlan(),
         cleanupEnforcer,
       });
 
@@ -313,7 +368,7 @@ describe('Pipeline Finally Cleanup (Redline Tests)', () => {
 
       const pipeline = new Pipeline({
         registry,
-        defaultPlan: createDefaultPlan(),
+        defaultPlan: createTestPlan(),
         cleanupEnforcer: failingEnforcer,
       });
 
@@ -363,7 +418,7 @@ describe('Pipeline Finally Cleanup (Redline Tests)', () => {
 
       const pipeline = new Pipeline({
         registry,
-        defaultPlan: createDefaultPlan(),
+        defaultPlan: createTestPlan(),
         cleanupEnforcer: warningEnforcer,
       });
 
@@ -385,7 +440,7 @@ describe('Pipeline Finally Cleanup (Redline Tests)', () => {
 
       const pipeline = new Pipeline({
         registry,
-        defaultPlan: createDefaultPlan(),
+        defaultPlan: createTestPlan(),
         cleanupEnforcer,
         events: {
           onCleanup,
@@ -410,7 +465,7 @@ describe('Pipeline Finally Cleanup (Redline Tests)', () => {
     it('should work without cleanup enforcer (for backwards compatibility)', async () => {
       const pipeline = new Pipeline({
         registry,
-        defaultPlan: createDefaultPlan(),
+        defaultPlan: createTestPlan(),
         // No cleanupEnforcer
       });
 
@@ -457,7 +512,7 @@ describe('Pipeline Finally Cleanup (Redline Tests)', () => {
 
       const pipeline = new Pipeline({
         registry,
-        defaultPlan: createDefaultPlan(),
+        defaultPlan: createTestPlan(),
         cleanupEnforcer: warningEnforcer,
       });
 

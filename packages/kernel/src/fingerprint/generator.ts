@@ -13,10 +13,11 @@ import type {
 /**
  * Generate a unique fingerprint ID.
  * Format: FL-{timestamp}-{random}
+ * Uses crypto.randomUUID() for cryptographically secure randomness.
  */
 export function generateFingerprintId(): string {
   const timestamp = Date.now().toString(36);
-  const random = Math.random().toString(36).substring(2, 8);
+  const random = globalThis.crypto.randomUUID().slice(0, 8);
   return `FL-${timestamp}-${random}`;
 }
 
@@ -86,7 +87,7 @@ function extractChecks(steps: StepResult[]): FingerprintChecks {
   const checks: FingerprintChecks = {};
 
   for (const step of steps) {
-    const verificationStatus = mapStepStatus(step.status);
+    const verificationStatus = mapStepToVerification(step);
 
     switch (step.filterId) {
       case 'parser':
@@ -118,20 +119,21 @@ function extractChecks(steps: StepResult[]): FingerprintChecks {
   return checks;
 }
 
-function mapStepStatus(status: StepResult['status']): VerificationStatus {
-  switch (status) {
-    case 'passed':
+/**
+ * Map StepResult to VerificationStatus based on execution and diagnostics.
+ * NOTE: Legacy status removed - derive verification from execution + diagnostics.
+ */
+function mapStepToVerification(step: StepResult): VerificationStatus {
+  switch (step.execution) {
+    case 'ran': {
+      // Derive from diagnostics
+      const hasErrors = step.diagnostics.some((d) => d.severity === 'error');
+      if (hasErrors) return 'FAILED';
       return 'VERIFIED';
-    case 'failed':
-      return 'FAILED';
-    case 'warning':
-      return 'VERIFIED';
+    }
     case 'skipped':
       return 'SKIPPED';
-    case 'timeout':
-    case 'error':
-      return 'UNVERIFIED';
-    default:
+    case 'errored':
       return 'UNVERIFIED';
   }
 }

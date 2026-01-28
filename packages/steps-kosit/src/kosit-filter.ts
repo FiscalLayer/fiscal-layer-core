@@ -1,4 +1,10 @@
-import type { Filter, FilterContext, StepResult, Diagnostic } from '@fiscal-layer/contracts';
+import type {
+  Filter,
+  FilterContext,
+  StepResult,
+  Diagnostic,
+  ExecutionStatus,
+} from '@fiscal-layer/contracts';
 import type { KositRunner, KositRunnerConfig, KositValidateOptions } from './types.js';
 import { kositItemsToDiagnostics } from './types.js';
 import { MockKositRunner } from './mock-kosit-runner.js';
@@ -101,7 +107,7 @@ export function createKositFilter(config: KositFilterConfig = {}): Filter {
       if (!runner) {
         return {
           filterId: 'kosit',
-          status: 'error',
+          execution: 'errored',
           diagnostics: [],
           durationMs: 0,
           error: {
@@ -121,7 +127,7 @@ export function createKositFilter(config: KositFilterConfig = {}): Filter {
         if (!rawXml || rawXml.trim().length === 0) {
           return {
             filterId: 'kosit',
-            status: 'failed',
+            execution: 'ran',
             diagnostics: [
               {
                 code: 'KOSIT-001',
@@ -181,23 +187,21 @@ export function createKositFilter(config: KositFilterConfig = {}): Filter {
         const kositDiagnostics = kositItemsToDiagnostics(result.items, 'kosit');
         diagnostics.push(...kositDiagnostics);
 
-        // Determine status
-        // Priority: systemError > profileUnsupported > validation result
-        let status: StepResult['status'];
+        // Determine execution status
+        // Priority: systemError > profileUnsupported > validation completed
+        // NOTE: Legacy status (passed/failed/warning) is no longer set.
+        // Decision logic derives status from execution + diagnostics.
+        let execution: ExecutionStatus;
         if (result.systemError === true) {
           // System error (XML parse error, service error) - hard failure
-          status = 'error';
+          execution = 'errored';
         } else if (result.profileUnsupported === true) {
           // Document profile not supported - skip validation, don't fail
-          status = 'skipped';
-        } else if (!result.valid) {
-          status = 'failed';
-        } else if (result.summary.warnings > 0 && config.failOnWarnings) {
-          status = 'failed';
-        } else if (result.summary.warnings > 0) {
-          status = 'warning';
+          execution = 'skipped';
         } else {
-          status = 'passed';
+          // Validation ran to completion (regardless of pass/fail)
+          // The diagnostics contain error/warning findings for decision layer
+          execution = 'ran';
         }
 
         // Build metadata
@@ -233,7 +237,7 @@ export function createKositFilter(config: KositFilterConfig = {}): Filter {
         return {
           filterId: 'kosit',
           filterVersion: '1.0.0',
-          status,
+          execution,
           diagnostics,
           durationMs: Date.now() - startTime,
           metadata,
@@ -250,7 +254,7 @@ export function createKositFilter(config: KositFilterConfig = {}): Filter {
         return {
           filterId: 'kosit',
           filterVersion: '1.0.0',
-          status: 'error',
+          execution: 'errored',
           diagnostics: [
             {
               code: 'KOSIT-ERR',

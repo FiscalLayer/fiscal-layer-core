@@ -501,41 +501,14 @@ export class JobRepository {
 
   private generateJobId(): string {
     const timestamp = Date.now().toString(36);
-    const random = Math.random().toString(36).slice(2, 10);
+    const random = globalThis.crypto.randomUUID().slice(0, 8);
     return `job_${timestamp}_${random}`;
   }
 }
 
-/**
- * Create a JobRepository from environment variables.
- */
-export async function createJobRepositoryFromEnv(): Promise<JobRepository> {
-  // Dynamic import to avoid loading pg when not needed
-  const { Pool } = await import('pg');
-
-  const config: PostgresConfig = {};
-
-  if (process.env['DATABASE_URL']) {
-    config.connectionString = process.env['DATABASE_URL'];
-  } else {
-    config.host = process.env['POSTGRES_HOST'] ?? 'localhost';
-    config.port = parseInt(process.env['POSTGRES_PORT'] ?? '5432', 10);
-    config.database = process.env['POSTGRES_DB'] ?? 'fiscallayer';
-    config.user = process.env['POSTGRES_USER'] ?? 'fiscallayer';
-    config.password = process.env['POSTGRES_PASSWORD'];
-  }
-
-  config.poolSize = parseInt(process.env['POSTGRES_POOL_SIZE'] ?? '10', 10);
-
-  const pool = new Pool({
-    connectionString: config.connectionString,
-    host: config.host,
-    port: config.port,
-    database: config.database,
-    user: config.user,
-    password: config.password,
-    max: config.poolSize,
-  });
-
-  return new JobRepository(pool);
-}
+// NOTE: createJobRepositoryFromEnv() was removed in PR#2.5 (OSS boundary).
+// Apps should create Pool directly with their own env config and inject it:
+//
+//   import { Pool } from 'pg';
+//   const pool = new Pool({ connectionString: process.env['DATABASE_URL'] });
+//   const jobRepo = new JobRepository(pool);

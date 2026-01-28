@@ -418,36 +418,13 @@ export class RedisTempStore implements TempStore {
   }
 }
 
-/**
- * Create a RedisTempStore from environment variables.
- *
- * Environment variables:
- * - REDIS_URL: Full Redis connection URL
- * - REDIS_HOST: Redis host (default: localhost)
- * - REDIS_PORT: Redis port (default: 6379)
- * - REDIS_PASSWORD: Redis password
- * - REDIS_DB: Redis database number (default: 0)
- * - REDIS_KEY_PREFIX: Key prefix (default: fl:temp:)
- */
-export async function createRedisTempStoreFromEnv(): Promise<RedisTempStore> {
-  const config: RedisTempStoreConfig = {};
-
-  if (process.env['REDIS_URL']) {
-    config.url = process.env['REDIS_URL'];
-  } else {
-    config.host = process.env['REDIS_HOST'] ?? 'localhost';
-    config.port = parseInt(process.env['REDIS_PORT'] ?? '6379', 10);
-    if (process.env['REDIS_PASSWORD']) {
-      config.password = process.env['REDIS_PASSWORD'];
-    }
-    config.db = parseInt(process.env['REDIS_DB'] ?? '0', 10);
-  }
-
-  if (process.env['REDIS_KEY_PREFIX']) {
-    config.keyPrefix = process.env['REDIS_KEY_PREFIX'];
-  }
-
-  const store = new RedisTempStore(config);
-  await store.initialize();
-  return store;
-}
+// NOTE: createRedisTempStoreFromEnv() was removed in PR#2.5 (OSS boundary).
+// Apps should create RedisTempStore directly with their own env config:
+//
+//   const store = new RedisTempStore({
+//     url: process.env['REDIS_URL'],
+//     host: process.env['REDIS_HOST'],
+//     port: parseInt(process.env['REDIS_PORT'] ?? '6379', 10),
+//     password: process.env['REDIS_PASSWORD'],
+//   });
+//   await store.initialize();

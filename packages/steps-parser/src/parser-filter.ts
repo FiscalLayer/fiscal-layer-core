@@ -20,7 +20,14 @@
  * - Only format/profile/documentType metadata in report
  */
 
-import type { Filter, FilterContext, StepResult, Diagnostic, ParsedInvoice, InvoiceFormat } from '@fiscal-layer/contracts';
+import type {
+  Filter,
+  FilterContext,
+  StepResult,
+  Diagnostic,
+  ParsedInvoice,
+  InvoiceFormat,
+} from '@fiscal-layer/contracts';
 import { detectInvoiceFormatFromXml } from './detect-format.js';
 import { parseXmlToCanonicalInvoice } from './parse-xml.js';
 import type { ParserFilterConfig, ParserResult } from './types.js';
@@ -171,15 +178,13 @@ export function createParserFilter(userConfig?: ParserFilterConfig): Filter {
         // Step 3: Convert CanonicalInvoice to ParsedInvoice for context
         const parsedInvoice = convertToParsedInvoice(canonicalInvoice, formatResult);
 
-        // Determine final status
-        const hasErrors = diagnostics.some(d => d.severity === 'error');
-        const hasWarnings = diagnostics.some(d => d.severity === 'warning');
-        const status = hasErrors ? 'failed' : hasWarnings ? 'warning' : 'passed';
+        // NOTE: Legacy status (passed/failed/warning) no longer set.
+        // Decision layer derives status from execution + diagnostics.
 
         return {
           filterId: filter.id,
           filterVersion: filter.version,
-          status,
+          execution: 'ran', // Step completed, decision from diagnostics
           diagnostics,
           durationMs: Date.now() - startTime,
           startedAt,
@@ -223,7 +228,8 @@ export function createParserFilter(userConfig?: ParserFilterConfig): Filter {
 export const parserFilter = createParserFilter();
 
 /**
- * Create a failed step result
+ * Create a step result for when parsing found errors.
+ * NOTE: Does not set legacy `status` - decision layer derives it from diagnostics.
  */
 function createFailedResult(
   filterId: string,
@@ -233,7 +239,7 @@ function createFailedResult(
 ): StepResult {
   return {
     filterId,
-    status: 'failed',
+    execution: 'ran', // Step completed, found errors (decision from diagnostics)
     diagnostics,
     durationMs: Date.now() - startTime,
     startedAt,

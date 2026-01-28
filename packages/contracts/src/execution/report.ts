@@ -8,14 +8,44 @@ import type { RetentionWarning } from '../privacy/retention-enforcer.js';
 import type { PolicyGateDecision } from './policy-gate.js';
 
 /**
- * Overall validation status
+ * Report state describes the EXECUTION LIFECYCLE of the pipeline.
+ *
+ * OSS Boundary: This type describes EXECUTION FACTS, not VALIDATION DECISIONS.
+ * - 'complete': Pipeline ran all applicable steps to completion
+ * - 'incomplete': Pipeline was aborted or stopped early
+ * - 'errored': Pipeline encountered execution errors (not validation errors)
+ *
+ * Validation decisions (ALLOW/BLOCK) come from `finalDecision` which is
+ * computed by the PolicyGate filter (or Private decision layer).
+ */
+export type ReportState = 'complete' | 'incomplete' | 'errored';
+
+/**
+ * Overall validation status.
+ *
+ * @deprecated This type encodes VALIDATION DECISIONS which belong in the Private layer.
+ * Use `reportState` for execution facts and `finalDecision.decision` for validation decisions.
+ *
+ * OSS Boundary: ValidationReport should report EXECUTION FACTS only:
+ * - What steps ran/skipped/errored
+ * - What diagnostics were produced
+ * - Execution timing and metadata
+ *
+ * The Private decision layer (PolicyGate) interprets these facts into
+ * decisions (ALLOW/ALLOW_WITH_WARNINGS/BLOCK) stored in `finalDecision`.
+ *
+ * Migration:
+ * - Use `report.reportState` for execution lifecycle ('complete'/'incomplete'/'errored')
+ * - Use `report.finalDecision.decision` for the actual decision
+ * - Use `report.steps` execution status for raw execution facts
+ * - This field will be removed in a future major version
  */
 export type ValidationStatus =
-  | 'APPROVED' // All checks passed
-  | 'APPROVED_WITH_WARNINGS' // Passed with non-critical warnings
-  | 'REJECTED' // Critical errors found
-  | 'ERROR' // Validation could not complete
-  | 'TIMEOUT'; // Validation timed out
+  | 'APPROVED' // Decision - use finalDecision.decision instead
+  | 'APPROVED_WITH_WARNINGS' // Decision - use finalDecision.decision instead
+  | 'REJECTED' // Decision - use finalDecision.decision instead
+  | 'ERROR' // Execution fact - use reportState instead
+  | 'TIMEOUT'; // Execution fact - use reportState instead
 
 /**
  * Plan snapshot captures the exact execution plan used for validation.
@@ -144,13 +174,34 @@ export interface ValidationReport {
   runId: string;
 
   /**
-   * Overall validation status
+   * Pipeline execution lifecycle state.
+   *
+   * OSS Boundary: This describes EXECUTION FACTS, not VALIDATION DECISIONS.
+   * - 'complete': All applicable steps ran to completion
+   * - 'incomplete': Pipeline was aborted or stopped early
+   * - 'errored': Pipeline encountered execution errors
+   *
+   * For validation decisions, use `finalDecision.decision`.
+   */
+  reportState: ReportState;
+
+  /**
+   * Overall validation status.
+   *
+   * @deprecated Use `reportState` for execution facts and `finalDecision.decision` for decisions.
+   * This field is derived from `finalDecision` when present, otherwise falls back to legacy behavior.
+   * Will be removed in a future major version.
    */
   status: ValidationStatus;
 
   /**
-   * Compliance score (0-100)
-   * 100 = perfect compliance, 0 = completely non-compliant
+   * Compliance score (0-100).
+   * 100 = perfect compliance, 0 = completely non-compliant.
+   *
+   * @deprecated Score calculation is DECISION LOGIC that belongs in Private layer.
+   * OSS should report raw diagnostics; Private layer computes scores.
+   *
+   * Migration: Score will be moved to `finalDecision.metadata.score` in Private.
    */
   score: number;
 
@@ -175,7 +226,11 @@ export interface ValidationReport {
   steps: StepResult[];
 
   /**
-   * Step execution statistics
+   * Step execution statistics.
+   *
+   * Note: StepStatistics now contains only execution facts (ran/skipped/errored).
+   * Decision-based statistics (passed/failed/warnings) have been removed.
+   * Use LegacyStepStatistics for backwards compatibility during migration.
    */
   stepStatistics: StepStatistics;
 

@@ -4,6 +4,37 @@
 
 This package contains the core pipeline orchestrator that executes validation filters. It is designed to be runtime-agnostic and can be used in any JavaScript environment (Node.js, Deno, browsers, serverless).
 
+## OSS Boundary Constraints (CRITICAL)
+
+**Kernel MUST NOT interpret diagnostics.**
+
+Kernel is the orchestration layer. It coordinates filter execution, collects results, and produces execution summaries. It does NOT make compliance decisions.
+
+| Kernel Outputs | NOT Kernel's Job |
+|----------------|------------------|
+| `reportState` (execution lifecycle) | ALLOW / BLOCK / APPROVED / REJECTED |
+| `diagnostics` (collected from steps) | Severity interpretation |
+| `execution` (ran/skipped/errored) | Risk scoring decisions |
+| `timing` (performance metrics) | Policy thresholds |
+
+**Any aggregation beyond counting belongs to `@fiscal-layer/decision-engine`.**
+
+### What This Means in Practice
+
+```typescript
+// CORRECT: Kernel outputs execution facts
+report.reportState    // 'COMPLETE' | 'PARTIAL' | 'EMPTY'
+report.steps          // array of StepResult with diagnostics
+report.diagnostics    // flattened list of all diagnostics
+
+// WRONG: Kernel should NEVER output these
+report.status         // ❌ 'APPROVED' / 'REJECTED' - decision logic
+report.decision       // ❌ 'ALLOW' / 'BLOCK' - policy judgment
+report.riskLevel      // ❌ 'HIGH' / 'MEDIUM' / 'LOW' - interpretation
+```
+
+**All decision-related logic lives in the Private layer (`@fiscal-layer/decision-engine`).**
+
 ## Installation
 
 ```bash

@@ -1,19 +1,72 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Pipeline } from './pipeline.js';
 import { PluginRegistryImpl } from '../registry/registry.js';
-import { createDefaultPlan } from '../plan/builder.js';
-import type { Filter, StepResult } from '@fiscal-layer/contracts';
+import type { Filter, StepStatus, ExecutionStatus, ExecutionPlan } from '@fiscal-layer/contracts';
+
+/**
+ * Create a test plan that matches the mock filters registered in tests.
+ * This avoids "filter not found" errors that occur with createDefaultPlan().
+ */
+function createTestPlan(): ExecutionPlan {
+  return {
+    id: 'test-plan',
+    version: '1.0.0',
+    steps: [
+      { filterId: 'parser', enabled: true, order: 10 },
+      { filterId: 'kosit', enabled: true, order: 20, continueOnFailure: false },
+      {
+        filterId: 'live-verifiers',
+        enabled: true,
+        order: 30,
+        parallel: true,
+        children: [
+          { filterId: 'vies', enabled: true },
+          { filterId: 'ecb-rates', enabled: true },
+          { filterId: 'peppol', enabled: true },
+        ],
+      },
+      { filterId: 'semantic-risk', enabled: true, order: 40 },
+      { filterId: 'fingerprint', enabled: true, order: 50 },
+      { filterId: 'steps-policy-gate', enabled: true, order: 60, failurePolicy: 'always_run' },
+    ],
+    configHash: 'test-hash',
+    createdAt: new Date().toISOString(),
+  };
+}
+
+// Helper to map status to execution
+function statusToExecution(status: StepStatus): ExecutionStatus {
+  switch (status) {
+    case 'passed':
+    case 'failed':
+    case 'warning':
+      return 'ran';
+    case 'skipped':
+      return 'skipped';
+    case 'timeout':
+    case 'error':
+      return 'errored';
+  }
+}
 
 // Mock filter for testing
-const createMockFilter = (id: string, status: StepResult['status'] = 'passed'): Filter => ({
+const createMockFilter = (id: string, status: StepStatus = 'passed'): Filter => ({
   id,
   name: `Mock Filter ${id}`,
   version: '1.0.0',
   execute() {
+    // In the new model, validation failures produce error diagnostics
+    const diagnostics =
+      status === 'failed'
+        ? [{ code: `${id.toUpperCase()}-001`, severity: 'error' as const, message: 'Mock validation error', category: 'schema' as const, source: id }]
+        : status === 'warning'
+          ? [{ code: `${id.toUpperCase()}-002`, severity: 'warning' as const, message: 'Mock validation warning', category: 'business-rule' as const, source: id }]
+          : [];
+
     return Promise.resolve({
       filterId: id,
-      status,
-      diagnostics: [],
+      execution: statusToExecution(status),
+      diagnostics,
       durationMs: 10,
     });
   },
@@ -30,14 +83,13 @@ describe('Pipeline', () => {
     registry.register(createMockFilter('vies'));
     registry.register(createMockFilter('ecb-rates'));
     registry.register(createMockFilter('peppol'));
-    registry.register(createMockFilter('steps-amount-validation'));
     registry.register(createMockFilter('semantic-risk'));
     registry.register(createMockFilter('fingerprint'));
     registry.register(createMockFilter('steps-policy-gate'));
 
     pipeline = new Pipeline({
       registry,
-      defaultPlan: createDefaultPlan(),
+      defaultPlan: createTestPlan(),
     });
   });
 
@@ -109,7 +161,7 @@ describe('Pipeline', () => {
       });
 
       // Steps after kosit should be marked as skipped
-      const skippedSteps = report.steps.filter((s) => s.status === 'skipped');
+      const skippedSteps = report.steps.filter((s) => s.execution === 'skipped');
       expect(skippedSteps.length).toBeGreaterThan(0);
 
       // Each skipped step should have metadata explaining why
@@ -133,7 +185,7 @@ describe('Pipeline', () => {
       // policy-gate has always_run policy, should still execute
       const policyGateStep = report.steps.find((s) => s.filterId === 'steps-policy-gate');
       expect(policyGateStep).toBeDefined();
-      expect(policyGateStep?.status).not.toBe('skipped');
+      expect(policyGateStep?.execution).not.toBe('skipped');
     });
   });
 });

@@ -1,23 +1,79 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Pipeline } from '../pipeline/pipeline.js';
 import { PluginRegistryImpl } from '../registry/registry.js';
-import { createDefaultPlan, createPlanBuilder } from './builder.js';
+import { createPlanBuilder } from './builder.js';
 import {
   buildExecutionPlanSnapshot,
   calculatePlanHash,
   verifyPlanHash,
+  calculateConfigHash,
 } from './hash.js';
 import {
   buildEffectiveConfig,
   getEngineVersions,
 } from '../config/effective-config.js';
-import type { Filter, StepResult, EngineVersions } from '@fiscal-layer/contracts';
+import type { Filter, StepStatus, ExecutionStatus, EngineVersions, ExecutionPlan } from '@fiscal-layer/contracts';
+
+/**
+ * Create a test plan that matches the mock filters registered in tests.
+ */
+function createTestPlan(): ExecutionPlan {
+  const plan: ExecutionPlan = {
+    id: 'default-v1',
+    version: '1.0.0',
+    name: 'Test Plan',
+    description: 'Test validation pipeline',
+    steps: [
+      { filterId: 'parser', enabled: true, order: 10, failurePolicy: 'fail_fast' },
+      { filterId: 'kosit', enabled: true, order: 20, failurePolicy: 'fail_fast' },
+      {
+        filterId: 'live-verifiers',
+        enabled: true,
+        order: 30,
+        parallel: true,
+        failurePolicy: 'soft_fail',
+        children: [
+          { filterId: 'vies', enabled: true },
+          { filterId: 'ecb-rates', enabled: true },
+          { filterId: 'peppol', enabled: true },
+        ],
+      },
+      { filterId: 'semantic-risk', enabled: true, order: 40, config: { threshold: 50 } },
+      { filterId: 'fingerprint', enabled: true, order: 50 },
+    ],
+    configHash: '', // Will be calculated
+    createdAt: new Date().toISOString(),
+    isDefault: true,
+    globalConfig: {
+      defaultTimeout: 10000,
+      locale: 'en-US',
+      maxParallelism: 5,
+    },
+  };
+  plan.configHash = calculateConfigHash(plan);
+  return plan;
+}
+
+// Helper to map status to execution
+function statusToExecution(status: StepStatus): ExecutionStatus {
+  switch (status) {
+    case 'passed':
+    case 'failed':
+    case 'warning':
+      return 'ran';
+    case 'skipped':
+      return 'skipped';
+    case 'timeout':
+    case 'error':
+      return 'errored';
+  }
+}
 
 // Mock filter for testing
 const createMockFilter = (
   id: string,
   version: string,
-  status: StepResult['status'] = 'passed',
+  status: StepStatus = 'passed',
 ): Filter => ({
   id,
   name: `Mock Filter ${id}`,
@@ -25,6 +81,7 @@ const createMockFilter = (
   execute() {
     return Promise.resolve({
       filterId: id,
+      execution: statusToExecution(status),
       status,
       diagnostics: [],
       durationMs: 10,
@@ -35,7 +92,7 @@ const createMockFilter = (
 describe('ExecutionPlanSnapshot', () => {
   describe('Snapshot Determinism', () => {
     it('same config should produce identical planHash across multiple builds', () => {
-      const plan = createDefaultPlan();
+      const plan = createTestPlan();
       const effectiveConfig = buildEffectiveConfig();
       const engineVersions: EngineVersions = {
         kernelVersion: '0.0.1',
@@ -88,7 +145,7 @@ describe('ExecutionPlanSnapshot', () => {
     });
 
     it('planHash should be verifiable', () => {
-      const plan = createDefaultPlan();
+      const plan = createTestPlan();
       const effectiveConfig = buildEffectiveConfig();
       const engineVersions: EngineVersions = {
         kernelVersion: '0.0.1',
@@ -117,7 +174,7 @@ describe('ExecutionPlanSnapshot', () => {
     };
 
     it('changing a filter version should change planHash', () => {
-      const plan = createDefaultPlan();
+      const plan = createTestPlan();
       const effectiveConfig = buildEffectiveConfig();
 
       const snapshot1 = buildExecutionPlanSnapshot(
@@ -138,7 +195,7 @@ describe('ExecutionPlanSnapshot', () => {
     });
 
     it('changing engine version should change planHash', () => {
-      const plan = createDefaultPlan();
+      const plan = createTestPlan();
       const effectiveConfig = buildEffectiveConfig();
 
       const snapshot1 = buildExecutionPlanSnapshot(
@@ -166,11 +223,11 @@ describe('ExecutionPlanSnapshot', () => {
     });
 
     it('changing step config should change planHash', () => {
-      const plan1 = createPlanBuilder(createDefaultPlan())
+      const plan1 = createPlanBuilder(createTestPlan())
         .setStepConfig('parser', { option1: 'value1' })
         .build();
 
-      const plan2 = createPlanBuilder(createDefaultPlan())
+      const plan2 = createPlanBuilder(createTestPlan())
         .setStepConfig('parser', { option1: 'value2' }) // Different config
         .build();
 
@@ -194,9 +251,9 @@ describe('ExecutionPlanSnapshot', () => {
     });
 
     it('adding/removing a step should change planHash', () => {
-      const plan1 = createDefaultPlan();
+      const plan1 = createTestPlan();
       // Disable a top-level step (not a child step)
-      const plan2 = createPlanBuilder(createDefaultPlan())
+      const plan2 = createPlanBuilder(createTestPlan())
         .disableStep('fingerprint')
         .build();
 
@@ -222,7 +279,7 @@ describe('ExecutionPlanSnapshot', () => {
 
   describe('Snapshot Structure', () => {
     it('snapshot should contain all required fields', () => {
-      const plan = createDefaultPlan();
+      const plan = createTestPlan();
       const effectiveConfig = buildEffectiveConfig();
       const engineVersions: EngineVersions = {
         kernelVersion: '0.0.1',
@@ -262,7 +319,7 @@ describe('ExecutionPlanSnapshot', () => {
     });
 
     it('step snapshots should include failure policy', () => {
-      const plan = createDefaultPlan();
+      const plan = createTestPlan();
       const effectiveConfig = buildEffectiveConfig();
       const engineVersions: EngineVersions = { kernelVersion: '0.0.1' };
 
@@ -283,7 +340,7 @@ describe('ExecutionPlanSnapshot', () => {
     });
 
     it('snapshot should NOT contain PII or temp keys', () => {
-      const plan = createDefaultPlan();
+      const plan = createTestPlan();
       const effectiveConfig = buildEffectiveConfig();
       const engineVersions: EngineVersions = { kernelVersion: '0.0.1' };
 
@@ -327,7 +384,7 @@ describe('Pipeline Report Hashes', () => {
   it('report should contain planHash, configSnapshotHash, and engineVersions', async () => {
     const pipeline = new Pipeline({
       registry,
-      defaultPlan: createDefaultPlan(),
+      defaultPlan: createTestPlan(),
     });
 
     const report = await pipeline.execute({
@@ -345,7 +402,7 @@ describe('Pipeline Report Hashes', () => {
   it('report should include executionSnapshot with step details', async () => {
     const pipeline = new Pipeline({
       registry,
-      defaultPlan: createDefaultPlan(),
+      defaultPlan: createTestPlan(),
     });
 
     const report = await pipeline.execute({
@@ -364,7 +421,7 @@ describe('Pipeline Report Hashes', () => {
   it('same pipeline config should produce consistent planHash across executions', async () => {
     const pipeline = new Pipeline({
       registry,
-      defaultPlan: createDefaultPlan(),
+      defaultPlan: createTestPlan(),
       engineVersionOverrides: {
         kositVersion: '1.5.0', // Fix version for determinism
       },
@@ -385,13 +442,13 @@ describe('Pipeline Report Hashes', () => {
   it('different tenant config should produce different configSnapshotHash', async () => {
     const pipeline1 = new Pipeline({
       registry,
-      defaultPlan: createDefaultPlan(),
+      defaultPlan: createTestPlan(),
       tenantConfig: { maxParallelism: 5 },
     });
 
     const pipeline2 = new Pipeline({
       registry,
-      defaultPlan: createDefaultPlan(),
+      defaultPlan: createTestPlan(),
       tenantConfig: { maxParallelism: 10 }, // Different config
     });
 
@@ -409,7 +466,7 @@ describe('Pipeline Report Hashes', () => {
   it('filter versions from completed steps should match registry', async () => {
     const pipeline = new Pipeline({
       registry,
-      defaultPlan: createDefaultPlan(),
+      defaultPlan: createTestPlan(),
     });
 
     const report = await pipeline.execute({
@@ -424,7 +481,7 @@ describe('Pipeline Report Hashes', () => {
   it('planSnapshot should have all required audit trail fields', async () => {
     const pipeline = new Pipeline({
       registry,
-      defaultPlan: createDefaultPlan(),
+      defaultPlan: createTestPlan(),
     });
 
     const report = await pipeline.execute({

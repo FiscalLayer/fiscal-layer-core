@@ -149,15 +149,26 @@ export interface PolicyGateConfig {
 }
 
 /**
- * Default PolicyGate configuration.
- * Used when no custom config is provided.
+ * @deprecated **MUST migrate** to @fiscal-layer/decision-engine (private).
+ * **Will throw at runtime.** See docs/open-core.md for migration guide.
+ *
+ * OSS Boundary: Default policy configurations are COMMERCIAL VALUE.
+ * - Threshold tuning, default behaviors, and policy packs differentiate the SaaS
+ * - OSS provides the PolicyGateConfig INTERFACE only
+ * - Private packages provide the actual default configuration
+ *
+ * Migration options:
+ * 1. Import from @fiscal-layer/decision-engine (Private/SaaS)
+ * 2. Define your own PolicyGateConfig for self-hosted deployments
+ *
+ * @throws {Error} Always throws at runtime - CI should block any imports of this constant
  */
-export const DEFAULT_POLICY_GATE_CONFIG: PolicyGateConfig = {
-  errorBehavior: 'block',
-  externalVerifierFailure: 'warn',
-  policyVersion: 'default-v1',
-  includeStepAnalysis: false,
-};
+export const DEFAULT_POLICY_GATE_CONFIG: PolicyGateConfig = (() => {
+  throw new Error(
+    '[OSS BOUNDARY] DEFAULT_POLICY_GATE_CONFIG has been moved to @fiscal-layer/decision-engine. ' +
+      'Import from the private package or define your own PolicyGateConfig.',
+  );
+})() as never as PolicyGateConfig;
 
 /**
  * The PolicyGate decision with full audit trail.
@@ -289,3 +300,58 @@ export function isDecisionReasonCode(value: unknown): value is DecisionReasonCod
   ];
   return typeof value === 'string' && validCodes.includes(value as DecisionReasonCode);
 }
+
+// ============================================================================
+// PolicyEvaluator Interface (OSS - Injection Point)
+// ============================================================================
+
+import type { StepResult } from './result.js';
+import type { Diagnostic } from '../core/diagnostic.js';
+
+/**
+ * Input for policy evaluation.
+ *
+ * This interface defines the data required to make a policy decision.
+ * The actual evaluation logic is provided via PolicyEvaluator injection.
+ */
+export interface PolicyEvaluationInput {
+  /**
+   * All completed step results from the pipeline
+   */
+  steps: readonly StepResult[];
+
+  /**
+   * All accumulated diagnostics
+   */
+  diagnostics: readonly Diagnostic[];
+
+  /**
+   * Optional risk score from semantic analysis
+   */
+  riskScore: number | undefined;
+
+  /**
+   * Policy configuration
+   */
+  config: PolicyGateConfig;
+}
+
+/**
+ * PolicyEvaluator function type.
+ *
+ * OSS Boundary: This is the INJECTION POINT for policy evaluation logic.
+ * - OSS packages define the interface (PolicyEvaluationInput, PolicyGateDecision)
+ * - Private packages provide the implementation
+ * - Apps inject the evaluator when creating the PolicyGate filter
+ *
+ * @example
+ * ```typescript
+ * // In private package (decision-engine)
+ * import { evaluatePolicy } from '@fiscal-layer/decision-engine';
+ *
+ * // In app
+ * import { createPolicyGateFilter } from '@fiscal-layer/steps-policy-gate';
+ * const filter = createPolicyGateFilter({ evaluator: evaluatePolicy });
+ * ```
+ */
+export type PolicyEvaluator = (input: PolicyEvaluationInput) => PolicyGateDecision;

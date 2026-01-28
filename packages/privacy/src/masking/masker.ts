@@ -144,8 +144,9 @@ export class DataMasker {
       }
 
       case 'tokenize':
-        // In production, this would use a proper tokenization service
-        return `[TOKEN:${Math.random().toString(36).slice(2, 10)}]`;
+        // Use crypto.randomUUID for cryptographically secure token generation
+        // Slice to get a shorter, readable token while maintaining uniqueness
+        return `[TOKEN:${globalThis.crypto.randomUUID().slice(0, 8)}]`;
 
       case 'generalize':
         // Simplified generalization

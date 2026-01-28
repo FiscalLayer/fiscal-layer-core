@@ -210,13 +210,16 @@ export function createStepCompleteEvent(
   result: StepResult,
   filterVersion: string,
 ): StepCompleteEvent {
+  // Use execution status
+  const status = result.execution;
+
   return {
     runId,
     correlationId,
     timestamp: new Date().toISOString(),
     filterId: result.filterId,
     filterVersion,
-    status: result.status,
+    status,
     durationMs: result.durationMs,
     diagnosticCount: result.diagnostics.length,
   };

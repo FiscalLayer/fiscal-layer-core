@@ -39,18 +39,20 @@ export function calculateScore(
     score += weight;
   }
 
-  // Deduct for step failures
+  // Deduct for step execution issues
+  // NOTE: Legacy status removed - derive from execution + diagnostics
   for (const step of steps) {
-    switch (step.status) {
-      case 'failed':
+    if (step.execution === 'errored') {
+      score += WEIGHTS.stepError;
+    } else if (step.execution === 'ran') {
+      // Check diagnostics for failure/warning
+      const hasErrors = step.diagnostics.some((d) => d.severity === 'error');
+      const hasWarnings = step.diagnostics.some((d) => d.severity === 'warning');
+      if (hasErrors) {
         score += WEIGHTS.stepFailed;
-        break;
-      case 'warning':
+      } else if (hasWarnings) {
         score += WEIGHTS.stepWarning;
-        break;
-      case 'error':
-        score += WEIGHTS.stepError;
-        break;
+      }
     }
   }
 

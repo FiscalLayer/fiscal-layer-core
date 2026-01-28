@@ -9,13 +9,16 @@ import type {
 import { SecureDeleteFilter } from './secure-delete-filter.js';
 
 /**
- * Default logger that logs to console (safe - no sensitive data)
+ * Default logger that logs to console (safe - no sensitive data).
+ *
+ * NOTE: Debug logging is disabled by default in the OSS library.
+ * Inject a custom logger via config.logger to enable debug output.
  */
 const defaultLogger = {
-  debug: (message: string, meta?: Record<string, unknown>) => {
-    if (process.env['NODE_ENV'] !== 'production') {
-      console.debug(`[PipelineCleanup] ${message}`, meta ?? '');
-    }
+  // Debug disabled by default - inject custom logger to enable
+  debug: (_message: string, _meta?: Record<string, unknown>) => {
+    // No-op: OSS library should not read process.env
+    // Apps can inject their own logger with debug enabled
   },
   warn: (message: string, meta?: Record<string, unknown>) => {
     console.warn(`[PipelineCleanup] ${message}`, meta ?? '');

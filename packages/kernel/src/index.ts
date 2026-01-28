@@ -13,7 +13,14 @@
 
 export { Pipeline } from './pipeline/pipeline.js';
 export { PluginRegistryImpl } from './registry/registry.js';
-export { ValidationContextImpl } from './context/context.js';
+export {
+  ValidationContextImpl,
+  defaultClock,
+  defaultIdGenerator,
+} from './context/context.js';
+
+// Determinism support: injectable clock and ID generator for testing/audits
+export type { Clock, IdGenerator, ContextInit } from './context/context.js';
 
 export { createDefaultPlan, createPlanBuilder } from './plan/builder.js';
 export {

@@ -39,10 +39,12 @@ export const kositFilter: Filter = {
 
     // Check if parser ran successfully
     const parserResult = context.getStepResult('parser');
-    if (!parserResult || parserResult.status === 'failed') {
+    // Skip if parser didn't run or errored (check execution, not legacy status)
+    const parserHasErrors = parserResult?.diagnostics?.some((d) => d.severity === 'error') ?? false;
+    if (!parserResult || parserResult.execution !== 'ran' || parserHasErrors) {
       return {
         filterId: 'kosit',
-        status: 'skipped',
+        execution: 'skipped',
         diagnostics: [
           {
             code: 'KOSIT-SKIP-001',
@@ -85,11 +87,11 @@ export const kositFilter: Filter = {
       });
     }
 
-    const hasErrors = diagnostics.some((d) => d.severity === 'error');
+    // NOTE: Legacy status no longer set - decision layer derives from diagnostics
 
     return {
       filterId: 'kosit',
-      status: hasErrors ? 'failed' : diagnostics.length > 0 ? 'warning' : 'passed',
+      execution: 'ran', // Step completed, decision from diagnostics
       diagnostics,
       durationMs: Date.now() - startTime,
       metadata: {

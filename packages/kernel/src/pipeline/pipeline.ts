@@ -3,10 +3,13 @@ import type {
   PipelineConfig,
   PipelineInput,
   ValidationReport,
+  ReportState,
+  ValidationStatus,
   ExecutionPlan,
   ExecutionStep,
   ExecutionPlanSnapshot,
   StepResult,
+  StepStatistics,
   PluginRegistry,
   FilterContext,
   InvoiceSummary,
@@ -187,16 +190,21 @@ export class Pipeline implements PipelineInterface {
       // Execute steps
       await this.executeSteps(plan.steps, context);
 
-      // Calculate score
+      // Calculate score (deprecated - will be moved to Private decision layer)
       const score = calculateScore(context.diagnostics, context.completedSteps);
 
-      // Determine status
-      const status = this.determineStatus(context, score);
-      pipelineStatus = status === 'APPROVED' || status === 'APPROVED_WITH_WARNINGS'
-        ? 'success'
-        : status === 'TIMEOUT'
-          ? 'timeout'
-          : 'failure';
+      // Determine report state (execution lifecycle - NOT validation decision)
+      const reportState = this.determineReportState(context);
+
+      // Extract PolicyGate decision if present (this is where decisions come from)
+      const finalDecision = this.extractPolicyGateDecision(context.completedSteps);
+
+      // Derive deprecated status from finalDecision or fallback to legacy behavior
+      const status = this.deriveStatusFromDecision(finalDecision, reportState, context);
+
+      // Determine pipeline status for internal tracking
+      // 'complete' → 'success', anything else → 'failure' (errored or incomplete/aborted)
+      pipelineStatus = reportState === 'complete' ? 'success' : 'failure';
 
       // Create fingerprint
       const fingerprint = createFingerprint({
@@ -222,6 +230,7 @@ export class Pipeline implements PipelineInterface {
       // Build report
       report = {
         runId: context.runId,
+        reportState,
         status,
         score,
         diagnostics: [...context.diagnostics],
@@ -249,8 +258,7 @@ export class Pipeline implements PipelineInterface {
         report.correlationId = input.correlationId;
       }
 
-      // Extract PolicyGate decision if present
-      const finalDecision = this.extractPolicyGateDecision(context.completedSteps);
+      // Add finalDecision if present
       if (finalDecision !== undefined) {
         report.finalDecision = finalDecision;
       }
@@ -318,7 +326,7 @@ export class Pipeline implements PipelineInterface {
         // Record skipped step for audit trail
         context.addStepResult({
           filterId: step.filterId,
-          status: 'skipped',
+          execution: 'skipped',
           diagnostics: [],
           durationMs: 0,
           metadata: { skippedReason: 'pipeline_aborted', abortReason: context.abortReason },
@@ -331,7 +339,7 @@ export class Pipeline implements PipelineInterface {
       if (step.condition && !this.evaluateCondition(step.condition, context)) {
         context.addStepResult({
           filterId: step.filterId,
-          status: 'skipped',
+          execution: 'skipped',
           diagnostics: [],
           durationMs: 0,
         });
@@ -383,7 +391,7 @@ export class Pipeline implements PipelineInterface {
     if (!registered) {
       context.addStepResult({
         filterId: step.filterId,
-        status: 'error',
+        execution: 'errored',
         diagnostics: [],
         durationMs: 0,
         error: {
@@ -446,8 +454,9 @@ export class Pipeline implements PipelineInterface {
 
       this.config.events?.onStepComplete?.(step.filterId, durationMs);
 
-      // Check if we should abort
-      if (result.status === 'failed' && !step.continueOnFailure) {
+      // Check if we should abort based on execution + diagnostics
+      const hasErrors = result.diagnostics.some((d) => d.severity === 'error');
+      if (result.execution === 'ran' && hasErrors && !step.continueOnFailure) {
         context.abort(`Filter '${step.filterId}' failed`);
       }
     } catch (error) {
@@ -464,7 +473,7 @@ export class Pipeline implements PipelineInterface {
       context.addStepResult({
         filterId: step.filterId,
         filterVersion: filter.version,
-        status: 'error',
+        execution: 'errored',
         diagnostics: [],
         durationMs,
         error: errorInfo,
@@ -490,10 +499,16 @@ export class Pipeline implements PipelineInterface {
     if (!condition) return true;
 
     switch (condition.type) {
-      case 'filter-passed':
-        return context.getStepResult(condition.filterId ?? '')?.status === 'passed';
-      case 'filter-failed':
-        return context.getStepResult(condition.filterId ?? '')?.status === 'failed';
+      case 'filter-passed': {
+        const result = context.getStepResult(condition.filterId ?? '');
+        if (!result || result.execution !== 'ran') return false;
+        return !result.diagnostics.some((d) => d.severity === 'error');
+      }
+      case 'filter-failed': {
+        const result = context.getStepResult(condition.filterId ?? '');
+        if (!result || result.execution !== 'ran') return false;
+        return result.diagnostics.some((d) => d.severity === 'error');
+      }
       case 'field-exists':
         return condition.fieldPath ? this.fieldExists(context, condition.fieldPath) : false;
       default:
@@ -512,18 +527,67 @@ export class Pipeline implements PipelineInterface {
     return current !== undefined;
   }
 
-  private determineStatus(
+  /**
+   * Determine report state - EXECUTION LIFECYCLE only, NOT validation decisions.
+   *
+   * OSS Boundary: This method only reports execution facts:
+   * - 'complete': All applicable steps ran to completion
+   * - 'incomplete': Pipeline was aborted or stopped early
+   * - 'errored': Pipeline encountered execution errors (step errored)
+   *
+   * Validation decisions (pass/fail) come from PolicyGate filter.
+   */
+  private determineReportState(context: ValidationContextImpl): ReportState {
+    // Check for execution errors (steps that errored, not validation errors)
+    const hasExecutionErrors = context.completedSteps.some((s) => s.execution === 'errored');
+    if (hasExecutionErrors) return 'errored';
+
+    // Check if pipeline was aborted
+    if (context.aborted) return 'incomplete';
+
+    // Pipeline completed normally
+    return 'complete';
+  }
+
+  /**
+   * Derive deprecated status field from PolicyGate decision or legacy fallback.
+   *
+   * @deprecated This method exists for backwards compatibility only.
+   * New code should use `reportState` for execution facts and `finalDecision.decision` for validation decisions.
+   */
+  private deriveStatusFromDecision(
+    finalDecision: PolicyGateDecision | undefined,
+    reportState: ReportState,
     context: ValidationContextImpl,
-    score: number,
-  ): ValidationReport['status'] {
-    if (context.aborted) return 'ERROR';
+  ): ValidationStatus {
+    // If PolicyGate provided a decision, map it to legacy status
+    if (finalDecision !== undefined) {
+      switch (finalDecision.decision) {
+        case 'ALLOW':
+          return 'APPROVED';
+        case 'ALLOW_WITH_WARNINGS':
+          return 'APPROVED_WITH_WARNINGS';
+        case 'BLOCK':
+          return 'REJECTED';
+      }
+    }
 
-    const hasErrors = context.diagnostics.some((d) => d.severity === 'error');
-    const hasWarnings = context.diagnostics.some((d) => d.severity === 'warning');
-
-    if (hasErrors) return 'REJECTED';
-    if (hasWarnings) return 'APPROVED_WITH_WARNINGS';
-    return 'APPROVED';
+    // Fallback: derive from report state (for pipelines without PolicyGate)
+    // This is LEGACY behavior that will be removed when status field is removed
+    switch (reportState) {
+      case 'errored':
+        return 'ERROR';
+      case 'incomplete':
+        return 'ERROR';
+      case 'complete':
+        // Legacy fallback: derive from diagnostics (DECISION LOGIC - to be removed)
+        // This exists only for backwards compatibility with pipelines that don't use PolicyGate
+        const hasErrors = context.diagnostics.some((d) => d.severity === 'error');
+        const hasWarnings = context.diagnostics.some((d) => d.severity === 'warning');
+        if (hasErrors) return 'REJECTED';
+        if (hasWarnings) return 'APPROVED_WITH_WARNINGS';
+        return 'APPROVED';
+    }
   }
 
   private countDiagnostics(diagnostics: readonly { severity: string }[]) {
@@ -535,15 +599,12 @@ export class Pipeline implements PipelineInterface {
     };
   }
 
-  private calculateStepStats(steps: readonly StepResult[]) {
+  private calculateStepStats(steps: readonly StepResult[]): StepStatistics {
     return {
       total: steps.length,
-      passed: steps.filter((s) => s.status === 'passed').length,
-      failed: steps.filter((s) => s.status === 'failed').length,
-      warnings: steps.filter((s) => s.status === 'warning').length,
-      skipped: steps.filter((s) => s.status === 'skipped').length,
-      timedOut: steps.filter((s) => s.status === 'timeout').length,
-      errors: steps.filter((s) => s.status === 'error').length,
+      ran: steps.filter((s) => s.execution === 'ran').length,
+      skipped: steps.filter((s) => s.execution === 'skipped').length,
+      errored: steps.filter((s) => s.execution === 'errored').length,
       totalDurationMs: steps.reduce((sum, s) => sum + s.durationMs, 0),
     };
   }

@@ -9,7 +9,15 @@
 export { createLogger, type Logger, type LogLevel } from './logging/logger.js';
 export { createSafeLogger, assertSafeLogging, type SafeLoggerOptions } from './logging/safe-logger.js';
 export { FiscalLayerError, ValidationError, ConfigurationError } from './errors/errors.js';
-export { generateId, generateCorrelationId } from './utils/ids.js';
+export {
+  generateId,
+  generateCorrelationId,
+  generateRunId,
+  generateFingerprintId,
+  defaultIdGenerator,
+  type IdGenerator,
+  type GenerateIdOptions,
+} from './utils/ids.js';
 export {
   canonicalStringify,
   computeConfigHash,

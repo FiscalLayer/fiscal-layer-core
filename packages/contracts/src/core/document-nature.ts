@@ -182,13 +182,24 @@ export const EVIDENCE_LEVEL_DESCRIPTIONS: Record<
 };
 
 /**
- * Maximum allowed validation status per evidence level
+ * Maximum allowed validation status per evidence level.
  *
- * EN16931 documents can achieve APPROVED status.
- * PDF documents are capped at APPROVED_WITH_WARNINGS.
+ * @deprecated **MUST migrate** to @fiscal-layer/decision-engine (private).
+ * **Will throw at runtime.** See docs/open-core.md for migration guide.
+ *
+ * OSS Boundary: This constant encodes DECISION LOGIC which belongs in the Private layer.
+ * OSS should report evidence level as a fact; the Private decision layer
+ * determines what statuses are achievable based on policy configuration.
+ *
+ * Migration: Import from @fiscal-layer/decision-engine (Private)
+ * or implement your own evidence-to-status mapping in your decision layer.
+ *
+ * @throws {Error} Always throws at runtime - CI should block any imports of this constant
  */
-export const MAX_STATUS_BY_EVIDENCE_LEVEL: Record<EvidenceLevel, 'APPROVED' | 'APPROVED_WITH_WARNINGS'> = {
-  E3: 'APPROVED',
-  E2: 'APPROVED_WITH_WARNINGS',
-  E1: 'APPROVED_WITH_WARNINGS',
-};
+export const MAX_STATUS_BY_EVIDENCE_LEVEL: Record<EvidenceLevel, 'APPROVED' | 'APPROVED_WITH_WARNINGS'> =
+  (() => {
+    throw new Error(
+      '[OSS BOUNDARY] MAX_STATUS_BY_EVIDENCE_LEVEL has been moved to @fiscal-layer/decision-engine. ' +
+        'Evidence level capping is policy logic, not validation fact.',
+    );
+  })() as never as Record<EvidenceLevel, 'APPROVED' | 'APPROVED_WITH_WARNINGS'>;

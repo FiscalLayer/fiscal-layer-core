@@ -21,7 +21,28 @@ import {
   type Kosit422Logger,
 } from './index.js';
 import type { KositValidationItem } from './types.js';
-import type { FilterContext, ExecutionPlan } from '@fiscal-layer/contracts';
+import type { FilterContext, ExecutionPlan, StepResult, StepStatus } from '@fiscal-layer/contracts';
+
+// =============================================================================
+// Test-only helper: derives legacy StepStatus from StepResult
+// This is DECISION LOGIC - kept in tests only, not exported from OSS contracts.
+// =============================================================================
+function deriveStepStatus(result: StepResult): StepStatus {
+  switch (result.execution) {
+    case 'skipped':
+      return 'skipped';
+    case 'errored':
+      if (result.error?.name?.toLowerCase().includes('timeout')) return 'timeout';
+      return 'error';
+    case 'ran': {
+      const hasErrors = result.diagnostics.some((d) => d.severity === 'error');
+      const hasWarnings = result.diagnostics.some((d) => d.severity === 'warning');
+      if (hasErrors) return 'failed';
+      if (hasWarnings) return 'warning';
+      return 'passed';
+    }
+  }
+}
 
 // Sample XRechnung XML for testing
 const VALID_XRECHNUNG_XML = `<?xml version="1.0" encoding="UTF-8"?>
@@ -368,7 +389,7 @@ describe('createKositFilter', () => {
       const context = createMockContext(VALID_XRECHNUNG_XML);
       const result = await filter.execute(context);
 
-      expect(result.status).toBe('passed');
+      expect(deriveStepStatus(result)).toBe('passed');
       expect(result.filterId).toBe('kosit');
       expect(result.durationMs).toBeGreaterThanOrEqual(0);
 
@@ -387,7 +408,7 @@ describe('createKositFilter', () => {
       const context = createMockContext(VALID_XRECHNUNG_XML);
       const result = await filter.execute(context);
 
-      expect(result.status).toBe('failed');
+      expect(deriveStepStatus(result)).toBe('failed');
       expect(result.diagnostics.length).toBeGreaterThan(0);
 
       await filter.onDestroy?.();
@@ -412,9 +433,12 @@ describe('createKositFilter', () => {
       await filter.onDestroy?.();
     });
 
-    it('should fail on warnings when failOnWarnings is true', async () => {
+    it('should report warnings as diagnostics (decision layer interprets failOnWarnings)', async () => {
+      // NOTE: failOnWarnings is a DECISION LAYER concern, not an OSS filter concern.
+      // The OSS filter reports what it found (warnings). The Private decision layer
+      // decides whether warnings constitute failure based on policy configuration.
       const filter = createKositFilter({
-        failOnWarnings: true,
+        failOnWarnings: true, // This config is passed through for decision layer
       });
 
       await filter.onInit?.();
@@ -423,9 +447,15 @@ describe('createKositFilter', () => {
       const context = createMockContext(VALID_XRECHNUNG_XML);
       const result = await filter.execute(context);
 
-      // Check if there are warnings and status is failed
+      // OSS filter should report execution completed
+      expect(result.execution).toBe('ran');
+
+      // Warnings should be reported as warnings (not escalated to errors)
+      // The decision layer interprets this based on failOnWarnings config
       if (result.diagnostics.some((d) => d.severity === 'warning')) {
-        expect(result.status).toBe('failed');
+        // deriveStepStatus returns 'warning' because that's the diagnostic severity
+        // Decision layer would interpret this as 'failed' when failOnWarnings=true
+        expect(deriveStepStatus(result)).toBe('warning');
       }
 
       await filter.onDestroy?.();
@@ -439,7 +469,7 @@ describe('createKositFilter', () => {
       const context = createMockContext('');
       const result = await filter.execute(context);
 
-      expect(result.status).toBe('failed');
+      expect(deriveStepStatus(result)).toBe('failed');
       expect(result.diagnostics.some((d) => d.code === 'KOSIT-001')).toBe(true);
 
       await filter.onDestroy?.();
@@ -496,7 +526,7 @@ describe('createKositFilter', () => {
       const context = createMockContext(VALID_XRECHNUNG_XML);
       const result = await filter.execute(context);
 
-      expect(result.status).toBe('error');
+      expect(deriveStepStatus(result)).toBe('error');
       expect(result.error).toBeDefined();
       expect(result.diagnostics.some((d) => d.code === 'KOSIT-ERR')).toBe(true);
 
@@ -658,7 +688,7 @@ describe('Profile Unsupported handling', () => {
     const context = createMockContext(VALID_XRECHNUNG_XML);
     const result = await filter.execute(context);
 
-    expect(result.status).toBe('skipped');
+    expect(deriveStepStatus(result)).toBe('skipped');
     expect(result.metadata?.['profileUnsupported']).toBe(true);
     expect(result.metadata?.['reasonCode']).toBe('KOSIT_PROFILE_UNSUPPORTED');
     expect(result.diagnostics.some((d) => d.code === 'KOSIT-PROFILE-UNSUPPORTED')).toBe(true);
@@ -709,8 +739,8 @@ describe('Profile Unsupported handling', () => {
 
     // Key assertion: status is 'skipped', not 'failed'
     // This allows the pipeline to continue with subsequent filters
-    expect(result.status).not.toBe('failed');
-    expect(result.status).toBe('skipped');
+    expect(deriveStepStatus(result)).not.toBe('failed');
+    expect(deriveStepStatus(result)).toBe('skipped');
 
     await filter.onDestroy?.();
   });
@@ -758,7 +788,7 @@ describe('Profile Unsupported handling', () => {
     const result = await filter.execute(context);
 
     // System error should result in 'error' status, not 'skipped'
-    expect(result.status).toBe('error');
+    expect(deriveStepStatus(result)).toBe('error');
     expect(result.metadata?.['systemError']).toBe(true);
     expect(result.metadata?.['reasonCode']).toBe('KOSIT_SYSTEM_ERROR');
     expect(result.diagnostics.some((d) => d.severity === 'error')).toBe(true);
@@ -811,7 +841,7 @@ describe('Profile Unsupported handling', () => {
     const result = await filter.execute(context);
 
     // 406 validation rejection should be 'failed', not 'skipped' or 'error'
-    expect(result.status).toBe('failed');
+    expect(deriveStepStatus(result)).toBe('failed');
     expect(result.metadata?.['profileUnsupported']).toBeUndefined();
     expect(result.metadata?.['systemError']).toBeUndefined();
     expect(result.metadata?.['scenarioName']).toBe('EN16931 CII');
@@ -939,7 +969,7 @@ describe('StepStatus stability for KoSIT errors', () => {
       const result = await filter.execute(context);
 
       // CRITICAL: status must be 'error', not 'failed' or anything else
-      expect(result.status).toBe('error');
+      expect(deriveStepStatus(result)).toBe('error');
       expect(result.metadata?.['systemError']).toBe(true);
       expect(result.metadata?.['reasonCode']).toBe('KOSIT_SYSTEM_ERROR');
 
@@ -988,7 +1018,7 @@ describe('StepStatus stability for KoSIT errors', () => {
       const result = await filter.execute(context);
 
       // CRITICAL: status must be 'skipped', not 'failed'
-      expect(result.status).toBe('skipped');
+      expect(deriveStepStatus(result)).toBe('skipped');
       expect(result.metadata?.['profileUnsupported']).toBe(true);
       expect(result.metadata?.['reasonCode']).toBe('KOSIT_PROFILE_UNSUPPORTED');
 
@@ -1037,7 +1067,7 @@ describe('StepStatus stability for KoSIT errors', () => {
       const result = await filter.execute(context);
 
       // CRITICAL: status must be 'failed', not 'error' or 'skipped'
-      expect(result.status).toBe('failed');
+      expect(deriveStepStatus(result)).toBe('failed');
       expect(result.metadata?.['profileUnsupported']).toBeUndefined();
       expect(result.metadata?.['systemError']).toBeUndefined();
 
@@ -1226,7 +1256,7 @@ describe('KoSIT diagnostics propagation on pipeline abort', () => {
 
     // CRITICAL: Even though validation failed, diagnostics MUST be present
     // This is essential for the pipeline to include them in the final report
-    expect(result.status).toBe('failed');
+    expect(deriveStepStatus(result)).toBe('failed');
     expect(result.diagnostics.length).toBeGreaterThan(0);
 
     // Verify the specific rule code is present
