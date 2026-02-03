@@ -172,15 +172,16 @@ export interface PolicyGateConfig {
  * 1. Import from @fiscal-layer/decision-engine (Private/SaaS)
  * 2. Define your own PolicyGateConfig for self-hosted deployments
  *
- * @throws {Error} Always throws at runtime - CI should block any imports of this constant
+ * @throws {Error} Throws when any property is accessed - CI should block any usage of this constant
  */
-// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- Intentional: IIFE returns never but we need the type for migration guidance
-export const DEFAULT_POLICY_GATE_CONFIG: PolicyGateConfig = (() => {
-  throw new Error(
-    '[OSS BOUNDARY] DEFAULT_POLICY_GATE_CONFIG has been moved to @fiscal-layer/decision-engine. ' +
-      'Import from the private package or define your own PolicyGateConfig.',
-  );
-})() as never as PolicyGateConfig;
+export const DEFAULT_POLICY_GATE_CONFIG: PolicyGateConfig = new Proxy({} as PolicyGateConfig, {
+  get(): never {
+    throw new Error(
+      '[OSS BOUNDARY] DEFAULT_POLICY_GATE_CONFIG has been moved to @fiscal-layer/decision-engine. ' +
+        'Import from the private package or define your own PolicyGateConfig.',
+    );
+  },
+});
 
 /**
  * The PolicyGate decision with full audit trail.

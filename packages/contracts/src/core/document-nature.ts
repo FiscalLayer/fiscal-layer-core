@@ -185,7 +185,7 @@ export const EVIDENCE_LEVEL_DESCRIPTIONS: Record<
  * Maximum allowed validation status per evidence level.
  *
  * @deprecated **MUST migrate** to @fiscal-layer/decision-engine (private).
- * **Will throw at runtime.** See docs/open-core.md for migration guide.
+ * **Will throw at runtime when accessed.** See docs/open-core.md for migration guide.
  *
  * OSS Boundary: This constant encodes DECISION LOGIC which belongs in the Private layer.
  * OSS should report evidence level as a fact; the Private decision layer
@@ -194,13 +194,14 @@ export const EVIDENCE_LEVEL_DESCRIPTIONS: Record<
  * Migration: Import from @fiscal-layer/decision-engine (Private)
  * or implement your own evidence-to-status mapping in your decision layer.
  *
- * @throws {Error} Always throws at runtime - CI should block any imports of this constant
+ * @throws {Error} Throws when any property is accessed - CI should block any usage of this constant
  */
 export const MAX_STATUS_BY_EVIDENCE_LEVEL: Record<EvidenceLevel, 'APPROVED' | 'APPROVED_WITH_WARNINGS'> =
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- Intentional: IIFE returns never but we need the type for migration guidance
-  (() => {
-    throw new Error(
-      '[OSS BOUNDARY] MAX_STATUS_BY_EVIDENCE_LEVEL has been moved to @fiscal-layer/decision-engine. ' +
-        'Evidence level capping is policy logic, not validation fact.',
-    );
-  })() as never as Record<EvidenceLevel, 'APPROVED' | 'APPROVED_WITH_WARNINGS'>;
+  new Proxy({} as Record<EvidenceLevel, 'APPROVED' | 'APPROVED_WITH_WARNINGS'>, {
+    get(): never {
+      throw new Error(
+        '[OSS BOUNDARY] MAX_STATUS_BY_EVIDENCE_LEVEL has been moved to @fiscal-layer/decision-engine. ' +
+          'Evidence level capping is policy logic, not validation fact.',
+      );
+    },
+  });
