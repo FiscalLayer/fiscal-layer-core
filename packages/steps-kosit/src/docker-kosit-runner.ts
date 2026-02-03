@@ -55,7 +55,7 @@ export interface HttpResponse {
  */
 export function createDefaultHttpClient(): HttpClient {
   // Access fetch via globalThis to make the call pattern pluggable
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  // eslint-disable-next-line @typescript-eslint/dot-notation
   const httpRequest: typeof globalThis.fetch = globalThis['fetch'];
 
   return {
