@@ -324,14 +324,20 @@ export class JobRepository {
   }
 
   /**
-   * Get jobs for a tenant.
+   * Query jobs by owner ID (tenant_id column).
+   *
+   * This is a generic query method that filters by the owner/account ID.
+   * The tenant-specific wrapper in @fiscal-layer/storage-tenant provides
+   * the tenant-aware API.
+   *
+   * @internal Used by TenantJobRepository in the private layer
    */
-  async getJobsByTenant(
-    tenantId: string,
+  async queryJobsByOwner(
+    ownerId: string,
     options?: { status?: JobRecord['status']; limit?: number },
   ): Promise<JobRecord[]> {
     let query = 'SELECT * FROM jobs WHERE tenant_id = $1';
-    const values: unknown[] = [tenantId];
+    const values: unknown[] = [ownerId];
 
     if (options?.status) {
       query += ' AND status = $2';
