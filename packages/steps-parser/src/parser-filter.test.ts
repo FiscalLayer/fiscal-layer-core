@@ -63,24 +63,24 @@ describe('ParserFilter', () => {
       expect(parserFilter.tags).toContain('oss');
     });
 
-    it('should return passed status for valid XRechnung', async () => {
+    it('should return ran status for valid XRechnung', async () => {
       const xml = readFileSync(join(fixturesDir, 'xrechnung-min.xml'), 'utf-8');
       const context = createMockContext(xml);
 
       const result = await parserFilter.execute(context);
 
-      expect(result.status).toBe('passed');
+      expect(result.execution).toBe('ran');
       expect(result.filterId).toBe('steps-parser');
       expect(result.diagnostics).toHaveLength(0);
     });
 
-    it('should return passed status for valid ZUGFeRD', async () => {
+    it('should return ran status for valid ZUGFeRD', async () => {
       const xml = readFileSync(join(fixturesDir, 'zugferd-min.xml'), 'utf-8');
       const context = createMockContext(xml);
 
       const result = await parserFilter.execute(context);
 
-      expect(result.status).toBe('passed');
+      expect(result.execution).toBe('ran');
       expect(result.filterId).toBe('steps-parser');
     });
 
@@ -129,34 +129,34 @@ describe('ParserFilter', () => {
   });
 
   describe('error handling', () => {
-    it('should return failed status for empty content', async () => {
+    it('should return error diagnostics for empty content', async () => {
       const context = createMockContext('');
 
       const result = await parserFilter.execute(context);
 
-      expect(result.status).toBe('failed');
+      expect(result.execution).toBe('ran');
       // Empty content produces multiple diagnostics: PARSE-001 (empty), PARSE-FORMAT-WARN, PARSE-XML
       expect(result.diagnostics.length).toBeGreaterThanOrEqual(1);
       expect(result.diagnostics.some(d => d.code === 'PARSE-001')).toBe(true);
     });
 
-    it('should return failed status for non-XML content', async () => {
+    it('should return error diagnostics for non-XML content', async () => {
       const context = createMockContext('This is not XML content');
 
       const result = await parserFilter.execute(context);
 
-      expect(result.status).toBe('failed');
+      expect(result.execution).toBe('ran');
       expect(result.diagnostics.some(d => d.code === 'PARSE-002' || d.code === 'PARSE-XML')).toBe(true);
     });
 
-    it('should return failed status for oversized content', async () => {
+    it('should return error diagnostics for oversized content', async () => {
       // Create content larger than 10MB
       const largeContent = '<?xml version="1.0"?><Invoice>' + 'x'.repeat(11 * 1024 * 1024) + '</Invoice>';
       const context = createMockContext(largeContent);
 
       const result = await parserFilter.execute(context);
 
-      expect(result.status).toBe('failed');
+      expect(result.execution).toBe('ran');
       expect(result.diagnostics[0]?.code).toBe('PARSE-SIZE');
     });
 
@@ -174,14 +174,14 @@ describe('ParserFilter', () => {
   });
 
   describe('configuration', () => {
-    it('should fail on unknown format when configured', async () => {
+    it('should return error diagnostic on unknown format when configured', async () => {
       const filter = createParserFilter({ failOnUnknownFormat: true });
       const xml = '<?xml version="1.0"?><UnknownDocument></UnknownDocument>';
       const context = createMockContext(xml);
 
       const result = await filter.execute(context);
 
-      expect(result.status).toBe('failed');
+      expect(result.execution).toBe('ran');
       expect(result.diagnostics[0]?.code).toBe('PARSE-FORMAT');
     });
 
@@ -191,8 +191,9 @@ describe('ParserFilter', () => {
 
       const result = await parserFilter.execute(context);
 
-      // Should either fail on parse error or warn on format
-      expect(['failed', 'warning']).toContain(result.status);
+      expect(result.execution).toBe('ran');
+      // Should have diagnostics (either error or warning)
+      expect(result.diagnostics.length).toBeGreaterThan(0);
     });
 
     it('should respect custom max size', async () => {
@@ -202,7 +203,7 @@ describe('ParserFilter', () => {
 
       const result = await filter.execute(context);
 
-      expect(result.status).toBe('failed');
+      expect(result.execution).toBe('ran');
       expect(result.diagnostics[0]?.code).toBe('PARSE-SIZE');
     });
   });
