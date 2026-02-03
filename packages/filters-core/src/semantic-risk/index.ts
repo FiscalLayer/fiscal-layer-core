@@ -37,7 +37,7 @@ export const semanticRiskFilter: Filter = {
     },
   },
 
-  async execute(context: FilterContext): Promise<StepResult> {
+  execute(context: FilterContext): Promise<StepResult> {
     const startTime = Date.now();
     const config = context.config as {
       riskThreshold?: number;
@@ -48,7 +48,7 @@ export const semanticRiskFilter: Filter = {
 
     const invoice = context.parsedInvoice;
     if (!invoice) {
-      return {
+      return Promise.resolve({
         filterId: 'semantic-risk',
         execution: 'skipped',
         diagnostics: [
@@ -61,7 +61,7 @@ export const semanticRiskFilter: Filter = {
           },
         ],
         durationMs: Date.now() - startTime,
-      };
+      });
     }
 
     // Check calculations
@@ -82,7 +82,7 @@ export const semanticRiskFilter: Filter = {
 
     // NOTE: Legacy status no longer set - decision layer derives from diagnostics
 
-    return {
+    return Promise.resolve({
       filterId: 'semantic-risk',
       execution: 'ran', // Step completed, decision from diagnostics
       diagnostics,
@@ -90,14 +90,14 @@ export const semanticRiskFilter: Filter = {
       metadata: {
         checksPerformed: ['calculations', 'dates', 'risk-patterns'],
       },
-    };
+    });
   },
 };
 
 function checkCalculations(invoice: {
   totalAmount?: number;
   taxAmount?: number;
-  lineItems?: Array<{ lineTotal?: number }>;
+  lineItems?: { lineTotal?: number }[];
 }): Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
 

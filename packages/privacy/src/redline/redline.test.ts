@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { DataMasker } from '../masking/masker.js';
 import { createDefaultMaskingPolicy, createStrictMaskingPolicy } from '../masking/policies.js';
 
@@ -259,7 +259,7 @@ describe('Red Line Tests - Temporal Boundaries', () => {
    * Import and test the actual implementation.
    */
 
-  it('should have test for TTL expiration (placeholder)', async () => {
+  it('should have test for TTL expiration (placeholder)', () => {
     // This test verifies that data expires after TTL
     // In a real test, we would:
     // 1. Store data with short TTL

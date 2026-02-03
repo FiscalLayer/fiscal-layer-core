@@ -53,7 +53,7 @@ export interface GenerateIdOptions {
  * const fixedGenerator = { generate: () => 'fixed-id' };
  * generateId('user', { idGenerator: fixedGenerator }) // => 'fixed-id'
  */
-export function generateId(prefix: string = '', options?: GenerateIdOptions): string {
+export function generateId(prefix = '', options?: GenerateIdOptions): string {
   const generator = options?.idGenerator ?? defaultIdGenerator;
   return generator.generate(prefix || undefined);
 }

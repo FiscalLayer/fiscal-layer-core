@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion -- Client verified initialized before access via ensureInitialized() */
+/* eslint-disable @typescript-eslint/consistent-type-imports -- Dynamic import() types needed for lazy-loading ioredis */
 import type { TempStore, TempStoreEntry, TempStoreOptions, TempStoreStats } from '@fiscal-layer/contracts';
 
 /**
@@ -120,6 +122,7 @@ export class RedisTempStore implements TempStore {
     // Dynamic import to avoid loading ioredis when not needed
     const ioredis = await import('ioredis');
     // ioredis exports Redis as both default and named export
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Different versions export differently
     const RedisConstructor = ioredis.Redis ?? ioredis.default;
 
     if (this.config.url) {
@@ -330,10 +333,10 @@ export class RedisTempStore implements TempStore {
     return newExpiresAt.toISOString();
   }
 
-  async cleanup(): Promise<number> {
+  cleanup(): Promise<number> {
     // Redis handles TTL automatically via PEXPIRE
     // No manual cleanup needed
-    return 0;
+    return Promise.resolve(0);
   }
 
   async stats(): Promise<TempStoreStats> {

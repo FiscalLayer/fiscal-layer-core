@@ -42,7 +42,7 @@ export class DataMasker {
 
     if (Array.isArray(obj)) {
       return obj.map((item, index) =>
-        this.maskObject(item, `${path}[${index}]`, maskedFields, stats),
+        this.maskObject(item, `${path}[${String(index)}]`, maskedFields, stats),
       );
     }
 

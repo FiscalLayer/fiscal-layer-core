@@ -28,14 +28,14 @@ const WEIGHTS = {
  * @returns Compliance score (0-100)
  */
 export function calculateScore(
-  diagnostics: ReadonlyArray<Diagnostic>,
-  steps: ReadonlyArray<StepResult>,
+  diagnostics: readonly Diagnostic[],
+  steps: readonly StepResult[],
 ): number {
   let score = 100;
 
   // Deduct for diagnostics
   for (const diagnostic of diagnostics) {
-    const weight = WEIGHTS[diagnostic.severity] ?? 0;
+    const weight = WEIGHTS[diagnostic.severity];
     score += weight;
   }
 

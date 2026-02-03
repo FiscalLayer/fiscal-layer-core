@@ -155,7 +155,7 @@ export const PRIORITY_MAP: Record<JobPriority, number> = {
 export function priorityToNumber(priority: JobPriority | number | undefined): number {
   if (typeof priority === 'number') return priority;
   if (priority === undefined) return PRIORITY_MAP.normal;
-  return PRIORITY_MAP[priority] ?? PRIORITY_MAP.normal;
+  return PRIORITY_MAP[priority];
 }
 
 /**

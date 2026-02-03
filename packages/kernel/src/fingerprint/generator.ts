@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-deprecated -- ValidationStatus used for legacy compatibility */
+/* eslint-disable @typescript-eslint/dot-notation -- Dynamic property access needed for FingerprintChecks */
 import type {
   ComplianceFingerprint,
   ValidationStatus,

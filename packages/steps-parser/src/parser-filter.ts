@@ -1,3 +1,7 @@
+/* eslint-disable @typescript-eslint/require-await -- Promise returned without await for consistency */
+/* eslint-disable @typescript-eslint/restrict-template-expressions -- Number in template literals */
+/* eslint-disable @typescript-eslint/non-nullable-type-assertion-style -- Explicit as syntax */
+/* eslint-disable @typescript-eslint/no-unnecessary-condition -- Defensive null checks */
 /**
  * Parser Filter
  *

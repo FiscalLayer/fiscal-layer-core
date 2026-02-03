@@ -14,6 +14,7 @@ export class FiscalLayerError extends Error {
     }
 
     // Maintains proper stack trace for where error was thrown
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- captureStackTrace is V8-specific, may not exist
     Error.captureStackTrace?.(this, this.constructor);
   }
 
@@ -31,11 +32,11 @@ export class FiscalLayerError extends Error {
  * Error thrown during validation
  */
 export class ValidationError extends FiscalLayerError {
-  readonly diagnostics?: Array<{ code: string; message: string }>;
+  readonly diagnostics?: { code: string; message: string }[];
 
   constructor(
     message: string,
-    diagnostics?: Array<{ code: string; message: string }>,
+    diagnostics?: { code: string; message: string }[],
     context?: Record<string, unknown>,
   ) {
     super(message, 'VALIDATION_ERROR', context);

@@ -163,6 +163,7 @@ export interface PolicyGateConfig {
  *
  * @throws {Error} Always throws at runtime - CI should block any imports of this constant
  */
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- Intentional: IIFE returns never but we need the type for migration guidance
 export const DEFAULT_POLICY_GATE_CONFIG: PolicyGateConfig = (() => {
   throw new Error(
     '[OSS BOUNDARY] DEFAULT_POLICY_GATE_CONFIG has been moved to @fiscal-layer/decision-engine. ' +

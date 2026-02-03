@@ -1,5 +1,4 @@
 import type {
-  ValidationContext,
   MutableValidationContext,
   ValidationOptions,
   RawInvoice,
@@ -77,7 +76,7 @@ export class ValidationContextImpl implements MutableValidationContext {
   private _diagnostics: Diagnostic[] = [];
   private _aborted = false;
   private _abortReason?: string;
-  private _filterConfigs: Map<string, Record<string, unknown>> = new Map();
+  private _filterConfigs = new Map<string, Record<string, unknown>>();
 
   constructor(init: ContextInit) {
     const clock = init.clock ?? defaultClock;
@@ -100,8 +99,8 @@ export class ValidationContextImpl implements MutableValidationContext {
 
   private flattenSteps(
     steps: ExecutionPlan['steps'],
-  ): Array<{ filterId: string; config: Record<string, unknown> | undefined }> {
-    const result: Array<{ filterId: string; config: Record<string, unknown> | undefined }> = [];
+  ): { filterId: string; config: Record<string, unknown> | undefined }[] {
+    const result: { filterId: string; config: Record<string, unknown> | undefined }[] = [];
     for (const step of steps) {
       result.push({ filterId: step.filterId, config: step.config });
       if (step.children) {
@@ -115,11 +114,11 @@ export class ValidationContextImpl implements MutableValidationContext {
     return this._parsedInvoice;
   }
 
-  get completedSteps(): ReadonlyArray<StepResult> {
+  get completedSteps(): readonly StepResult[] {
     return this._completedSteps;
   }
 
-  get diagnostics(): ReadonlyArray<Diagnostic> {
+  get diagnostics(): readonly Diagnostic[] {
     return this._diagnostics;
   }
 
@@ -139,8 +138,8 @@ export class ValidationContextImpl implements MutableValidationContext {
     return this._completedSteps.some((s) => s.filterId === filterId);
   }
 
-  getFilterConfig<T = Record<string, unknown>>(filterId: string): T | undefined {
-    return this._filterConfigs.get(filterId) as T | undefined;
+  getFilterConfig(filterId: string): Record<string, unknown> | undefined {
+    return this._filterConfigs.get(filterId);
   }
 
   // Mutable methods (used internally by pipeline)

@@ -11,8 +11,8 @@ import type {
  * Implementation of the plugin registry.
  */
 export class PluginRegistryImpl implements PluginRegistry {
-  private filters: Map<string, RegisteredFilter> = new Map();
-  private aliases: Map<string, string> = new Map();
+  private filters = new Map<string, RegisteredFilter>();
+  private aliases = new Map<string, string>();
 
   register(filter: Filter, options: FilterRegistrationOptions = {}): void {
     if (this.filters.has(filter.id)) {
@@ -74,8 +74,9 @@ export class PluginRegistryImpl implements PluginRegistry {
     let result = Array.from(this.filters.values());
 
     if (options?.tags && options.tags.length > 0) {
+      const tags = options.tags;
       result = result.filter((r) =>
-        options.tags!.some((tag) => r.filter.tags?.includes(tag)),
+        tags.some((tag) => r.filter.tags?.includes(tag)),
       );
     }
 
@@ -126,18 +127,22 @@ export class PluginRegistryImpl implements PluginRegistry {
   }
 
   async initializeAll(): Promise<void> {
-    const promises = Array.from(this.filters.values())
-      .filter((r) => r.filter.onInit)
-      .map((r) => r.filter.onInit!());
-
+    const promises: Promise<void>[] = [];
+    for (const r of this.filters.values()) {
+      if (r.filter.onInit) {
+        promises.push(r.filter.onInit());
+      }
+    }
     await Promise.all(promises);
   }
 
   async destroyAll(): Promise<void> {
-    const promises = Array.from(this.filters.values())
-      .filter((r) => r.filter.onDestroy)
-      .map((r) => r.filter.onDestroy!());
-
+    const promises: Promise<void>[] = [];
+    for (const r of this.filters.values()) {
+      if (r.filter.onDestroy) {
+        promises.push(r.filter.onDestroy());
+      }
+    }
     await Promise.all(promises);
   }
 

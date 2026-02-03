@@ -1,4 +1,4 @@
-import type { RetentionPolicy, DATA_CATEGORIES } from '@fiscal-layer/contracts';
+import type { RetentionPolicy } from '@fiscal-layer/contracts';
 
 /**
  * Create the zero-retention policy (default for FiscalLayer).

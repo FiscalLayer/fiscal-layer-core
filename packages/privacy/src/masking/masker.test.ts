@@ -62,7 +62,7 @@ describe('DataMasker', () => {
     const result = masker.mask(data);
 
     expect(result.stats.maskedCount).toBe(2);
-    expect(result.stats.byStrategy['redact']).toBe(2);
+    expect(result.stats.byStrategy.redact).toBe(2);
   });
 
   it('should not modify non-matching fields', () => {

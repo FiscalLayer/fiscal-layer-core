@@ -9,13 +9,12 @@
  * Uses the 'pg' driver directly for minimal overhead.
  */
 
-import type { Pool, PoolClient, QueryResult } from 'pg';
+import type { Pool, PoolClient } from 'pg';
 import type {
   JobRecord,
   CreateJobInput,
   UpdateJobStatusInput,
   StoreJobResultInput,
-  PostgresConfig,
 } from './types.js';
 import { priorityToNumber } from './types.js';
 
@@ -201,25 +200,25 @@ export class JobRepository {
     let paramIndex = 3;
 
     if (input.startedAt !== undefined) {
-      setClauses.push(`started_at = $${paramIndex}`);
+      setClauses.push(`started_at = $${String(paramIndex)}`);
       values.push(input.startedAt);
       paramIndex++;
     }
 
     if (input.completedAt !== undefined) {
-      setClauses.push(`completed_at = $${paramIndex}`);
+      setClauses.push(`completed_at = $${String(paramIndex)}`);
       values.push(input.completedAt);
       paramIndex++;
     }
 
     if (input.retryCount !== undefined) {
-      setClauses.push(`retry_count = $${paramIndex}`);
+      setClauses.push(`retry_count = $${String(paramIndex)}`);
       values.push(input.retryCount);
       paramIndex++;
     }
 
     if (input.errorMessage !== undefined) {
-      setClauses.push(`error_message = $${paramIndex}`);
+      setClauses.push(`error_message = $${String(paramIndex)}`);
       values.push(input.errorMessage);
       paramIndex++;
     }
@@ -342,7 +341,7 @@ export class JobRepository {
     query += ' ORDER BY created_at DESC';
 
     if (options?.limit) {
-      query += ` LIMIT $${values.length + 1}`;
+      query += ` LIMIT $${String(values.length + 1)}`;
       values.push(options.limit);
     }
 
@@ -404,7 +403,7 @@ export class JobRepository {
    * Claim a pending job for processing (atomic operation).
    * Returns the job if successfully claimed, null otherwise.
    */
-  async claimJob(jobId: string, workerId?: string): Promise<JobRecord | null> {
+  async claimJob(jobId: string, _workerId?: string): Promise<JobRecord | null> {
     const query = `
       UPDATE jobs SET
         status = 'processing',

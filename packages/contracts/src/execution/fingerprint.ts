@@ -91,6 +91,7 @@ export interface ComplianceFingerprint {
   /**
    * Overall validation status
    */
+  // eslint-disable-next-line @typescript-eslint/no-deprecated -- Backwards compatibility: ValidationStatus used in fingerprint for existing audit trails
   status: ValidationStatus;
 
   /**

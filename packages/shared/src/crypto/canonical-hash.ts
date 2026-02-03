@@ -7,16 +7,17 @@ import { createHash } from 'crypto';
  * - Uses consistent formatting (no extra whitespace)
  */
 export function canonicalStringify(obj: unknown): string {
-  return JSON.stringify(obj, (_, value) => {
+  return JSON.stringify(obj, (_, value: unknown) => {
     if (value === undefined) {
       return undefined; // Will be omitted
     }
     if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
       // Sort object keys
       const sorted: Record<string, unknown> = {};
-      for (const key of Object.keys(value).sort()) {
-        if (value[key] !== undefined) {
-          sorted[key] = value[key];
+      const valueObj = value as Record<string, unknown>;
+      for (const key of Object.keys(valueObj).sort()) {
+        if (valueObj[key] !== undefined) {
+          sorted[key] = valueObj[key];
         }
       }
       return sorted;
@@ -47,8 +48,8 @@ export function verifyConfigHash(config: unknown, expectedHash: string): boolean
  * Extract hash algorithm and value from hash string.
  */
 export function parseHash(hashString: string): { algorithm: string; value: string } | null {
-  const match = hashString.match(/^(\w+):([a-fA-F0-9]+)$/);
-  if (!match || !match[1] || !match[2]) {
+  const match = /^(\w+):([a-fA-F0-9]+)$/.exec(hashString);
+  if (!match?.[1] || !match[2]) {
     return null;
   }
   return {

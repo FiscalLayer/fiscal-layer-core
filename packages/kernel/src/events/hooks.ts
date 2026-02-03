@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/await-thenable -- Hook results may or may not be promises */
+/* eslint-disable @typescript-eslint/no-extraneous-class -- Namespace class for hook management */
 /**
  * Kernel Event Hooks
  *

@@ -1,9 +1,9 @@
-import { createLogger, type Logger, type LoggerOptions, type LogLevel } from './logger.js';
+import { createLogger, type Logger, type LoggerOptions } from './logger.js';
 
 /**
  * PII patterns that should be scrubbed from logs
  */
-const PII_PATTERNS: Array<{ pattern: RegExp; replacement: string; name: string }> = [
+const PII_PATTERNS: { pattern: RegExp; replacement: string; name: string }[] = [
   // IBAN (various countries)
   {
     pattern: /\b[A-Z]{2}\d{2}[A-Z0-9]{4}\d{7}([A-Z0-9]?){0,16}\b/gi,
@@ -42,7 +42,7 @@ const PII_PATTERNS: Array<{ pattern: RegExp; replacement: string; name: string }
   },
   // Credit card numbers (basic pattern)
   {
-    pattern: /\b\d{4}[\s\-]?\d{4}[\s\-]?\d{4}[\s\-]?\d{4}\b/g,
+    pattern: /\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/g,
     replacement: '[CC:REDACTED]',
     name: 'creditcard',
   },
@@ -160,7 +160,7 @@ export interface SafeLoggerOptions extends LoggerOptions {
   /**
    * Additional patterns to scrub
    */
-  additionalPatterns?: Array<{ pattern: RegExp; replacement: string }>;
+  additionalPatterns?: { pattern: RegExp; replacement: string }[];
 }
 
 /**
@@ -212,7 +212,7 @@ export function createSafeLogger(options: SafeLoggerOptions = {}): Logger {
     }
 
     if (result !== jsonStr) {
-      scrubbed = JSON.parse(result);
+      scrubbed = JSON.parse(result) as Record<string, unknown>;
     }
 
     return scrubbed;

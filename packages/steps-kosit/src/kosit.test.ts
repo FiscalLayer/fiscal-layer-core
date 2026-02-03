@@ -27,11 +27,13 @@ import type { FilterContext, ExecutionPlan, StepResult, StepStatus } from '@fisc
 // Test-only helper: derives legacy StepStatus from StepResult
 // This is DECISION LOGIC - kept in tests only, not exported from OSS contracts.
 // =============================================================================
+// eslint-disable-next-line @typescript-eslint/no-deprecated -- Test-only helper using legacy type for backwards compatibility testing
 function deriveStepStatus(result: StepResult): StepStatus {
   switch (result.execution) {
     case 'skipped':
       return 'skipped';
     case 'errored':
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- error?.name may be undefined
       if (result.error?.name?.toLowerCase().includes('timeout')) return 'timeout';
       return 'error';
     case 'ran': {
@@ -915,7 +917,7 @@ describe('DockerKositRunner 422 classification', () => {
       daemonUrl: 'http://localhost:8080',
     });
 
-    const logMessages: Array<{ message: string; context: Record<string, unknown> | undefined }> = [];
+    const logMessages: { message: string; context: Record<string, unknown> | undefined }[] = [];
     const mockLogger: Kosit422Logger = {
       info: (message: string, context?: Record<string, unknown>) => {
         logMessages.push({ message, context });

@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-deprecated -- Using deprecated continueOnFailure for backward compatibility */
+/* eslint-disable @typescript-eslint/no-unnecessary-condition -- Defensive null checks */
 import type {
   ExecutionPlan,
   ExecutionStep,

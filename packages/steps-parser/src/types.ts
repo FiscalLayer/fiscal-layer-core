@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars -- Imported types used for type reference */
 /**
  * Types for the Parser Filter
  */

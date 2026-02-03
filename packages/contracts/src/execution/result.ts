@@ -212,6 +212,7 @@ export interface LegacyStepResult {
   filterVersion?: string;
   correlationId?: string;
   /** @deprecated Decision-based status - use execution + diagnostics */
+  // eslint-disable-next-line @typescript-eslint/no-deprecated -- Backwards compatibility: StepStatus used in legacy interface
   status: StepStatus;
   diagnostics: Diagnostic[];
   durationMs: number;
@@ -225,6 +226,7 @@ export interface LegacyStepResult {
     message: string;
     stack?: string;
   };
+  // eslint-disable-next-line @typescript-eslint/no-deprecated -- Backwards compatibility: recursive legacy type
   children?: LegacyStepResult[];
   billingEvent?: BillingEventRef;
 }
@@ -243,7 +245,9 @@ export interface LegacyStepResult {
  * @param legacy - The legacy step result to migrate
  * @returns The migrated step result with ExecutionStatus
  */
+// eslint-disable-next-line @typescript-eslint/no-deprecated -- Migration helper for legacy types
 export function migrateLegacyStepResult(legacy: LegacyStepResult): StepResult {
+  // eslint-disable-next-line @typescript-eslint/no-deprecated -- Accessing deprecated status for migration
   const executionStatus = mapStatusToExecution(legacy.status);
 
   // Build result with required fields first
@@ -295,6 +299,7 @@ export function migrateLegacyStepResult(legacy: LegacyStepResult): StepResult {
  *
  * @internal
  */
+// eslint-disable-next-line @typescript-eslint/no-deprecated -- Migration helper for legacy StepStatus
 function mapStatusToExecution(status: StepStatus): ExecutionStatus {
   switch (status) {
     case 'passed':
@@ -307,10 +312,11 @@ function mapStatusToExecution(status: StepStatus): ExecutionStatus {
     case 'timeout':
     case 'error':
       return 'errored';
-    default:
+    default: {
       // Exhaustive check
       const _exhaustive: never = status;
       return _exhaustive;
+    }
   }
 }
 
@@ -323,10 +329,12 @@ function mapStatusToExecution(status: StepStatus): ExecutionStatus {
  * @param legacy - The legacy statistics to migrate
  * @returns The migrated statistics with execution-based counts
  */
+// eslint-disable-next-line @typescript-eslint/no-deprecated -- Migration helper for legacy statistics
 export function migrateLegacyStepStatistics(legacy: LegacyStepStatistics): StepStatistics {
   return {
     total: legacy.total,
     // ran = passed + failed + warnings (all steps that completed)
+    // eslint-disable-next-line @typescript-eslint/no-deprecated -- Accessing deprecated fields for migration
     ran: legacy.passed + legacy.failed + legacy.warnings,
     skipped: legacy.skipped,
     // errored = timedOut + errors

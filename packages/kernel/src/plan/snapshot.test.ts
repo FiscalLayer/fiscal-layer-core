@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-deprecated -- Tests use deprecated StepStatus for backward compatibility */
+/* eslint-disable @typescript-eslint/no-unused-vars -- Some imports used for type documentation */
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Pipeline } from '../pipeline/pipeline.js';
 import { PluginRegistryImpl } from '../registry/registry.js';

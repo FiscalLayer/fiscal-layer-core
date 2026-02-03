@@ -75,8 +75,8 @@ function parseDecimal(str: string): DecimalValue {
     throw new Error(`Invalid decimal format: ${str}`);
   }
 
-  const intPart = parts[0] || '0';
-  const fracPart = parts[1] || '';
+  const intPart = parts[0] ?? '0';
+  const fracPart = parts[1] ?? '';
   const scale = fracPart.length;
 
   // Combine into a single integer
@@ -166,7 +166,7 @@ function applyRounding(
   const isNegative = quotient < 0n || (quotient === 0n && remainder < 0n);
   const absRemainder = remainder < 0n ? -remainder : remainder;
   const absDivisor = divisor < 0n ? -divisor : divisor;
-  const halfDivisor = absDivisor / 2n;
+  const _halfDivisor = absDivisor / 2n;
   const isHalf = absRemainder * 2n === absDivisor;
   const isMoreThanHalf = absRemainder * 2n > absDivisor;
 
@@ -319,7 +319,7 @@ export function divide(
   const scaledA = decA.value * BigInt(10 ** (targetScale - decA.scale + decB.scale));
 
   const quotient = scaledA / decB.value;
-  const remainder = scaledA % decB.value;
+  const _remainder = scaledA % decB.value;
   const negative = decA.negative !== decB.negative;
 
   // Round to target precision

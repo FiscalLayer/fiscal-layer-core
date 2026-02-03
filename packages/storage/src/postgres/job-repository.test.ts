@@ -1,5 +1,6 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import type { Pool, PoolClient, QueryResult } from 'pg';
+/* eslint-disable @typescript-eslint/no-non-null-assertion -- Test assertions verify array length before accessing */
+import { describe, it, expect, vi } from 'vitest';
+import type { Pool, QueryResult } from 'pg';
 import { JobRepository } from './job-repository.js';
 import type { CreateJobInput, StoreJobResultInput } from './types.js';
 
@@ -93,7 +94,7 @@ describe('JobRepository', () => {
       expect(result.id).toBe('job_123');
       expect(result.status).toBe('pending');
       expect(queries.length).toBe(1);
-      expect(queries[0].sql).toContain('INSERT INTO jobs');
+      expect(queries[0]!.sql).toContain('INSERT INTO jobs');
     });
 
     it('should NOT store invoice content in job record', async () => {
@@ -131,7 +132,7 @@ describe('JobRepository', () => {
       await repo.createJob(input);
 
       // Verify no invoice content in query values
-      const queryValues = queries[0].values;
+      const queryValues = queries[0]!.values;
       for (const value of queryValues) {
         if (typeof value === 'string') {
           // Should not contain XML or PII
@@ -188,7 +189,7 @@ describe('JobRepository', () => {
       const result = await repo.storeJobResult('job_123', input);
 
       // Verify invoice_content_key is cleared in query
-      expect(queries[0].sql).toContain('invoice_content_key = NULL');
+      expect(queries[0]!.sql).toContain('invoice_content_key = NULL');
       expect(result?.invoiceContentKey).toBeNull();
     });
 
@@ -245,7 +246,7 @@ describe('JobRepository', () => {
       await repo.storeJobResult('job_123', input);
 
       // Verify the stored JSON doesn't contain PII
-      const reportSummaryValue = queries[0].values[7]; // Index of report_summary
+      const reportSummaryValue = queries[0]!.values[7]; // Index of report_summary
       if (typeof reportSummaryValue === 'string') {
         for (const pattern of PII_PATTERNS) {
           expect(reportSummaryValue).not.toMatch(pattern);

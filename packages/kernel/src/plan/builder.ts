@@ -105,7 +105,7 @@ export function createPlanBuilder(base?: ExecutionPlan): PlanBuilder {
   const plan: ExecutionPlan = base
     ? { ...base, steps: [...base.steps] }
     : {
-        id: `plan-${Date.now()}`,
+        id: `plan-${String(Date.now())}`,
         version: '1.0.0',
         steps: [],
         configHash: '',

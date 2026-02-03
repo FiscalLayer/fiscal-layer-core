@@ -192,6 +192,7 @@ export interface ValidationReport {
    * This field is derived from `finalDecision` when present, otherwise falls back to legacy behavior.
    * Will be removed in a future major version.
    */
+  // eslint-disable-next-line @typescript-eslint/no-deprecated -- Backwards compatibility: status field kept for existing consumers
   status: ValidationStatus;
 
   /**

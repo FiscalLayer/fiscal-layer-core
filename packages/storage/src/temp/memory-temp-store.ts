@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/require-await -- TempStore interface requires async methods, but memory implementation is synchronous */
 import type { TempStore, TempStoreEntry, TempStoreOptions, TempStoreStats } from '@fiscal-layer/contracts';
 
 /**
@@ -118,7 +119,7 @@ export class MemoryTempStore implements TempStore {
       return undefined;
     }
 
-    const metadata: Omit<TempStoreEntry<unknown>, 'data'> = {
+    const metadata: Omit<TempStoreEntry, 'data'> = {
       key: entry.key,
       createdAt: entry.createdAt,
       expiresAt: entry.expiresAt,
@@ -293,9 +294,7 @@ export class MemoryTempStore implements TempStore {
     }, intervalMs);
 
     // Don't block process exit
-    if (this.cleanupTimer.unref) {
-      this.cleanupTimer.unref();
-    }
+    this.cleanupTimer.unref();
   }
 
   private isExpired(entry: InternalEntry): boolean {

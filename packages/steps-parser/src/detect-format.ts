@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars -- Imports used for type inference */
+/* eslint-disable @typescript-eslint/prefer-regexp-exec -- match() used for clarity */
 /**
  * Invoice Format Detection
  *

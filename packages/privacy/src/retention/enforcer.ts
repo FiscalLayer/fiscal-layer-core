@@ -1,4 +1,4 @@
-import type { RetentionPolicy, RetentionRule, DataCategory } from '@fiscal-layer/contracts';
+import type { RetentionPolicy, RetentionRule } from '@fiscal-layer/contracts';
 
 /**
  * RetentionEnforcer checks and enforces data retention policies.
@@ -66,15 +66,15 @@ export class RetentionEnforcer {
   /**
    * Get a summary of retention rules.
    */
-  getSummary(): Array<{
+  getSummary(): {
     category: string;
     retention: string;
     action: string;
     encrypted: boolean;
-  }> {
+  }[] {
     return this.policy.rules.map((rule) => ({
       category: rule.category,
-      retention: `${rule.maxRetention.value} ${rule.maxRetention.unit}`,
+      retention: `${String(rule.maxRetention.value)} ${rule.maxRetention.unit}`,
       action: rule.expirationAction,
       encrypted: rule.encryptAtRest ?? false,
     }));

@@ -197,6 +197,7 @@ export const EVIDENCE_LEVEL_DESCRIPTIONS: Record<
  * @throws {Error} Always throws at runtime - CI should block any imports of this constant
  */
 export const MAX_STATUS_BY_EVIDENCE_LEVEL: Record<EvidenceLevel, 'APPROVED' | 'APPROVED_WITH_WARNINGS'> =
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- Intentional: IIFE returns never but we need the type for migration guidance
   (() => {
     throw new Error(
       '[OSS BOUNDARY] MAX_STATUS_BY_EVIDENCE_LEVEL has been moved to @fiscal-layer/decision-engine. ' +

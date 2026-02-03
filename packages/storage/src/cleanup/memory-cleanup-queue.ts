@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/require-await -- CleanupQueue interface requires async methods, but memory implementation is synchronous */
 import type {
   CleanupQueue,
   CleanupQueueResult,

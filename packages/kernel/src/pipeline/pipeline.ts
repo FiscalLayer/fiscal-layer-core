@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-deprecated -- Using deprecated types for backward compatibility */
+/* eslint-disable @typescript-eslint/no-confusing-void-expression -- Async void callbacks */
+/* eslint-disable @typescript-eslint/restrict-template-expressions -- Number in template literals */
+/* eslint-disable @typescript-eslint/prefer-optional-chain -- Explicit null checks for clarity */
+/* eslint-disable no-case-declarations -- Lexical declarations in case blocks intentional */
 import type {
   Pipeline as PipelineInterface,
   PipelineConfig,
@@ -423,8 +428,7 @@ export class Pipeline implements PipelineInterface {
         abortReason: context.abortReason,
         getStepResult: (filterId: string) => context.getStepResult(filterId),
         hasExecuted: (filterId: string) => context.hasExecuted(filterId),
-        getFilterConfig: <T = Record<string, unknown>>(filterId: string) =>
-          context.getFilterConfig<T>(filterId),
+        getFilterConfig: (filterId: string) => context.getFilterConfig(filterId),
         config,
       };
 

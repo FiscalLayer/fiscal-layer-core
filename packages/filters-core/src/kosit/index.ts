@@ -33,16 +33,16 @@ export const kositFilter: Filter = {
     },
   },
 
-  async execute(context: FilterContext): Promise<StepResult> {
+  execute(context: FilterContext): Promise<StepResult> {
     const startTime = Date.now();
     const config = context.config as { schemaVersion?: string; strictMode?: boolean };
 
     // Check if parser ran successfully
     const parserResult = context.getStepResult('parser');
     // Skip if parser didn't run or errored (check execution, not legacy status)
-    const parserHasErrors = parserResult?.diagnostics?.some((d) => d.severity === 'error') ?? false;
-    if (!parserResult || parserResult.execution !== 'ran' || parserHasErrors) {
-      return {
+    const parserHasErrors = parserResult?.diagnostics.some((d) => d.severity === 'error') ?? false;
+    if (parserResult?.execution !== 'ran' || parserHasErrors) {
+      return Promise.resolve({
         filterId: 'kosit',
         execution: 'skipped',
         diagnostics: [
@@ -55,7 +55,7 @@ export const kositFilter: Filter = {
           },
         ],
         durationMs: Date.now() - startTime,
-      };
+      });
     }
 
     // Placeholder validation
@@ -89,7 +89,7 @@ export const kositFilter: Filter = {
 
     // NOTE: Legacy status no longer set - decision layer derives from diagnostics
 
-    return {
+    return Promise.resolve({
       filterId: 'kosit',
       execution: 'ran', // Step completed, decision from diagnostics
       diagnostics,
@@ -98,6 +98,6 @@ export const kositFilter: Filter = {
         schemaVersion: config.schemaVersion ?? '3.0.2',
         validatorVersion: '1.5.0', // KoSIT validator version
       },
-    };
+    });
   },
 };
