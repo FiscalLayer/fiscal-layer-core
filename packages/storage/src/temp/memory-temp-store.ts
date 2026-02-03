@@ -262,20 +262,19 @@ export class MemoryTempStore implements TempStore {
   async close(): Promise<void> {
     if (this.closed) return;
 
-    this.closed = true;
-
     if (this.cleanupTimer) {
       clearInterval(this.cleanupTimer);
       this.cleanupTimer = null;
     }
 
-    // Secure delete all sensitive entries
+    // Secure delete all sensitive entries (before marking as closed)
     for (const [key, entry] of this.entries) {
       if (entry.category === 'raw-invoice' || entry.category === 'parsed-invoice') {
         await this.secureDelete(key);
       }
     }
 
+    this.closed = true;
     this.entries.clear();
   }
 
