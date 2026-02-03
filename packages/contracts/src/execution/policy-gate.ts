@@ -23,6 +23,17 @@
 export type FinalDecision = 'ALLOW' | 'ALLOW_WITH_WARNINGS' | 'BLOCK';
 
 /**
+ * Constants for FinalDecision values.
+ * Use these instead of string literals in implementation code.
+ * @internal
+ */
+export const FinalDecisionValues = {
+  ALLOW: 'ALLOW' as const,
+  ALLOW_WITH_WARNINGS: 'ALLOW_WITH_WARNINGS' as const,
+  BLOCK: 'BLOCK' as const,
+} as const;
+
+/**
  * Categorizes the source of a BLOCK decision for operations/alerting.
  *
  * This distinction is useful for:

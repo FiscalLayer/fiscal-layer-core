@@ -55,7 +55,7 @@ function rowToJobRecord(row: JobRow): JobRecord {
     invoiceContentKey: row.invoice_content_key,
     format: row.format,
     options: row.options ?? {},
-    tenantId: row.tenant_id,
+    ownerId: row.tenant_id,
     correlationId: row.correlation_id,
     createdAt: row.created_at,
     startedAt: row.started_at,
@@ -86,7 +86,7 @@ function rowToJobRecord(row: JobRow): JobRecord {
  * // Create a job
  * const job = await repo.createJob({
  *   invoiceContentKey: 'temp:invoice:abc123',
- *   tenantId: 'tenant-1',
+ *   ownerId: 'tenant-1',
  * });
  *
  * // Update status
@@ -147,7 +147,7 @@ export class JobRepository {
           input.invoiceContentKey,
           input.format ?? null,
           JSON.stringify(input.options ?? {}),
-          input.tenantId ?? null,
+          input.ownerId ?? null,
           input.correlationId ?? null,
           input.maxRetries ?? 3,
         ]
@@ -157,7 +157,7 @@ export class JobRepository {
           input.invoiceContentKey,
           input.format ?? null,
           JSON.stringify(input.options ?? {}),
-          input.tenantId ?? null,
+          input.ownerId ?? null,
           input.correlationId ?? null,
           input.maxRetries ?? 3,
         ];

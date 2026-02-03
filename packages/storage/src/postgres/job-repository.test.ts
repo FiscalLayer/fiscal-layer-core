@@ -86,7 +86,7 @@ describe('JobRepository', () => {
         id: 'job_123',
         invoiceContentKey: 'temp:invoice:123',
         format: 'xrechnung',
-        tenantId: 'tenant-1',
+        ownerId: 'tenant-1',
       };
 
       const result = await repo.createJob(input);

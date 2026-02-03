@@ -27,6 +27,10 @@ import type {
   DecisionReasonCode,
   StepDecisionAnalysis,
 } from '@fiscal-layer/contracts';
+import {
+  ValidationStatusValues,
+  FinalDecisionValues,
+} from '@fiscal-layer/contracts';
 import { computeConfigHash } from '@fiscal-layer/shared';
 import { ValidationContextImpl } from '../context/context.js';
 import { createFingerprint } from '../fingerprint/generator.js';
@@ -567,12 +571,12 @@ export class Pipeline implements PipelineInterface {
     // If PolicyGate provided a decision, map it to legacy status
     if (finalDecision !== undefined) {
       switch (finalDecision.decision) {
-        case 'ALLOW':
-          return 'APPROVED';
-        case 'ALLOW_WITH_WARNINGS':
-          return 'APPROVED_WITH_WARNINGS';
-        case 'BLOCK':
-          return 'REJECTED';
+        case FinalDecisionValues.ALLOW:
+          return ValidationStatusValues.APPROVED;
+        case FinalDecisionValues.ALLOW_WITH_WARNINGS:
+          return ValidationStatusValues.APPROVED_WITH_WARNINGS;
+        case FinalDecisionValues.BLOCK:
+          return ValidationStatusValues.REJECTED;
       }
     }
 
@@ -580,17 +584,17 @@ export class Pipeline implements PipelineInterface {
     // This is LEGACY behavior that will be removed when status field is removed
     switch (reportState) {
       case 'errored':
-        return 'ERROR';
+        return ValidationStatusValues.ERROR;
       case 'incomplete':
-        return 'ERROR';
+        return ValidationStatusValues.ERROR;
       case 'complete':
         // Legacy fallback: derive from diagnostics (DECISION LOGIC - to be removed)
         // This exists only for backwards compatibility with pipelines that don't use PolicyGate
         const hasErrors = context.diagnostics.some((d) => d.severity === 'error');
         const hasWarnings = context.diagnostics.some((d) => d.severity === 'warning');
-        if (hasErrors) return 'REJECTED';
-        if (hasWarnings) return 'APPROVED_WITH_WARNINGS';
-        return 'APPROVED';
+        if (hasErrors) return ValidationStatusValues.REJECTED;
+        if (hasWarnings) return ValidationStatusValues.APPROVED_WITH_WARNINGS;
+        return ValidationStatusValues.APPROVED;
     }
   }
 

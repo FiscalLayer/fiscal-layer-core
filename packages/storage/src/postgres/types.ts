@@ -62,7 +62,7 @@ export interface JobRecord {
   invoiceContentKey: string | null; // Cleared after processing
   format: string | null;
   options: Record<string, unknown>;
-  tenantId: string | null;
+  ownerId: string | null;
   correlationId: string | null;
   createdAt: Date;
   startedAt: Date | null;
@@ -88,7 +88,7 @@ export interface CreateJobInput {
   format?: string | undefined;
   options?: Record<string, unknown> | undefined;
   priority?: JobPriority | undefined;
-  tenantId?: string | undefined;
+  ownerId?: string | undefined;
   correlationId?: string | undefined;
   maxRetries?: number | undefined;
 }

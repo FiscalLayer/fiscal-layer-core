@@ -48,6 +48,19 @@ export type ValidationStatus =
   | 'TIMEOUT'; // Execution fact - use reportState instead
 
 /**
+ * Constants for ValidationStatus values.
+ * Use these instead of string literals in implementation code.
+ * @internal
+ */
+export const ValidationStatusValues = {
+  APPROVED: 'APPROVED' as const,
+  APPROVED_WITH_WARNINGS: 'APPROVED_WITH_WARNINGS' as const,
+  REJECTED: 'REJECTED' as const,
+  ERROR: 'ERROR' as const,
+  TIMEOUT: 'TIMEOUT' as const,
+} as const;
+
+/**
  * Plan snapshot captures the exact execution plan used for validation.
  * This provides evidence chain for audit purposes - "what rules were applied?"
  */

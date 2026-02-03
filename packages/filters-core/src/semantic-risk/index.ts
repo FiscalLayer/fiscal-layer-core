@@ -17,9 +17,9 @@ export const semanticRiskFilter: Filter = {
   configSchema: {
     type: 'object',
     properties: {
-      riskThreshold: {
+      scoreThreshold: {
         type: 'number',
-        description: 'Risk score threshold for warnings',
+        description: 'Score threshold for warnings',
         default: 0.5,
         minimum: 0,
         maximum: 1,
@@ -40,7 +40,7 @@ export const semanticRiskFilter: Filter = {
   execute(context: FilterContext): Promise<StepResult> {
     const startTime = Date.now();
     const config = context.config as {
-      riskThreshold?: number;
+      scoreThreshold?: number;
       checkCalculations?: boolean;
       checkDates?: boolean;
     };
