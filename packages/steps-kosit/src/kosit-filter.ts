@@ -121,10 +121,10 @@ export function createKositFilter(config: KositFilterConfig = {}): Filter {
       const diagnostics: Diagnostic[] = [];
 
       try {
-        // Get the raw invoice XML
-        const rawXml = context.rawInvoice.content;
+        // Get the raw invoice content
+        const content = context.rawInvoice.content;
 
-        if (!rawXml || rawXml.trim().length === 0) {
+        if (!content || content.trim().length === 0) {
           return {
             filterId: 'kosit',
             execution: 'ran',
@@ -140,6 +140,37 @@ export function createKositFilter(config: KositFilterConfig = {}): Filter {
             durationMs: Date.now() - startTime,
           };
         }
+
+        // Check if content is PDF (binary, base64, or with web uploader prefix)
+        // KoSIT only validates XML, so skip for PDF content
+        const isPdfBinary = content.startsWith('%PDF-');
+        const isPdfBase64 = content.startsWith('JVBERi'); // %PDF- in base64
+        const isPdfWithPrefix = content.startsWith('__PDF_BASE64__');
+        const isPdfDataUrl = content.startsWith('data:application/pdf;base64,');
+
+        if (isPdfBinary || isPdfBase64 || isPdfWithPrefix || isPdfDataUrl) {
+          return {
+            filterId: 'kosit',
+            filterVersion: '1.0.0',
+            execution: 'skipped',
+            diagnostics: [
+              {
+                code: 'KOSIT-PDF-SKIP',
+                message:
+                  'PDF content detected - KoSIT validation skipped (PDF filter handles this)',
+                severity: 'info',
+                category: 'format',
+                source: 'kosit',
+              },
+            ],
+            durationMs: Date.now() - startTime,
+            metadata: {
+              skippedReason: 'pdf_content',
+            },
+          };
+        }
+
+        const rawXml = content;
 
         // Map InvoiceFormat to KoSIT format
         const formatHint = context.rawInvoice.formatHint;
