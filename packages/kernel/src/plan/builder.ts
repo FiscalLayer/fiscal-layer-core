@@ -12,6 +12,14 @@ export function createDefaultPlan(): ExecutionPlan {
       order: 10,
     },
     {
+      filterId: 'steps-pdf',
+      enabled: true,
+      order: 15,
+      // PDF filter extracts fields from PDF documents
+      // Uses soft_fail because missing Gemini should not block the pipeline
+      failurePolicy: 'soft_fail',
+    },
+    {
       filterId: 'kosit',
       enabled: true,
       order: 20,
