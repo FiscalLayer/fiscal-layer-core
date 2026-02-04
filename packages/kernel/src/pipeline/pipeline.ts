@@ -468,8 +468,15 @@ export class Pipeline implements PipelineInterface {
       this.config.events?.onStepComplete?.(step.filterId, durationMs);
 
       // Check if we should abort based on execution + diagnostics
+      // Respect both legacy `continueOnFailure` and new `failurePolicy` settings
+      // - failurePolicy: 'soft_fail' or 'always_run' -> don't abort
+      // - continueOnFailure: true -> don't abort
       const hasErrors = result.diagnostics.some((d) => d.severity === 'error');
-      if (result.execution === 'ran' && hasErrors && !step.continueOnFailure) {
+      const shouldContinueOnFailure =
+        step.continueOnFailure === true ||
+        step.failurePolicy === 'soft_fail' ||
+        step.failurePolicy === 'always_run';
+      if (result.execution === 'ran' && hasErrors && !shouldContinueOnFailure) {
         context.abort(`Filter '${step.filterId}' failed`);
       }
     } catch (error) {
