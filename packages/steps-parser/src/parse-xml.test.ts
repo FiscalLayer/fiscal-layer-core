@@ -260,8 +260,7 @@ describe('parseXmlToCanonicalInvoice', () => {
         warnings: [],
       };
 
-      expect(() => parseXmlToCanonicalInvoice('not xml', formatResult))
-        .toThrow();
+      expect(() => parseXmlToCanonicalInvoice('not xml', formatResult)).toThrow();
     });
 
     it('should throw error for unsupported root element', () => {
@@ -272,8 +271,9 @@ describe('parseXmlToCanonicalInvoice', () => {
         warnings: [],
       };
 
-      expect(() => parseXmlToCanonicalInvoice(xml, formatResult))
-        .toThrow(/Unsupported root element/);
+      expect(() => parseXmlToCanonicalInvoice(xml, formatResult)).toThrow(
+        /Unsupported root element/,
+      );
     });
   });
 
@@ -335,17 +335,30 @@ describe('parseXmlToCanonicalInvoice', () => {
         // Required line item amounts
         expect(typeof line.quantity, `Line ${line.id} quantity must be string`).toBe('string');
         expect(typeof line.unitPrice, `Line ${line.id} unitPrice must be string`).toBe('string');
-        expect(typeof line.lineNetAmount, `Line ${line.id} lineNetAmount must be string`).toBe('string');
+        expect(typeof line.lineNetAmount, `Line ${line.id} lineNetAmount must be string`).toBe(
+          'string',
+        );
 
         // Optional amounts
         if (line.baseQuantity !== undefined) {
-          expect(typeof line.baseQuantity, `Line ${line.id} baseQuantity must be string`).toBe('string');
+          expect(typeof line.baseQuantity, `Line ${line.id} baseQuantity must be string`).toBe(
+            'string',
+          );
         }
 
         // Tax category amounts
-        expect(typeof line.taxCategory.rate, `Line ${line.id} taxCategory.rate must be string`).toBe('string');
-        expect(typeof line.taxCategory.taxableAmount, `Line ${line.id} taxCategory.taxableAmount must be string`).toBe('string');
-        expect(typeof line.taxCategory.taxAmount, `Line ${line.id} taxCategory.taxAmount must be string`).toBe('string');
+        expect(
+          typeof line.taxCategory.rate,
+          `Line ${line.id} taxCategory.rate must be string`,
+        ).toBe('string');
+        expect(
+          typeof line.taxCategory.taxableAmount,
+          `Line ${line.id} taxCategory.taxableAmount must be string`,
+        ).toBe('string');
+        expect(
+          typeof line.taxCategory.taxAmount,
+          `Line ${line.id} taxCategory.taxAmount must be string`,
+        ).toBe('string');
       }
     });
 
@@ -356,7 +369,9 @@ describe('parseXmlToCanonicalInvoice', () => {
 
       for (const tax of invoice.totals.taxBreakdown) {
         expect(typeof tax.rate, `Tax ${tax.code} rate must be string`).toBe('string');
-        expect(typeof tax.taxableAmount, `Tax ${tax.code} taxableAmount must be string`).toBe('string');
+        expect(typeof tax.taxableAmount, `Tax ${tax.code} taxableAmount must be string`).toBe(
+          'string',
+        );
         expect(typeof tax.taxAmount, `Tax ${tax.code} taxAmount must be string`).toBe('string');
       }
     });
@@ -382,11 +397,22 @@ describe('parseXmlToCanonicalInvoice', () => {
       for (const line of invoice.lineItems) {
         expect(typeof line.quantity, `Line ${line.id} quantity must be string`).toBe('string');
         expect(typeof line.unitPrice, `Line ${line.id} unitPrice must be string`).toBe('string');
-        expect(typeof line.lineNetAmount, `Line ${line.id} lineNetAmount must be string`).toBe('string');
+        expect(typeof line.lineNetAmount, `Line ${line.id} lineNetAmount must be string`).toBe(
+          'string',
+        );
 
-        expect(typeof line.taxCategory.rate, `Line ${line.id} taxCategory.rate must be string`).toBe('string');
-        expect(typeof line.taxCategory.taxableAmount, `Line ${line.id} taxCategory.taxableAmount must be string`).toBe('string');
-        expect(typeof line.taxCategory.taxAmount, `Line ${line.id} taxCategory.taxAmount must be string`).toBe('string');
+        expect(
+          typeof line.taxCategory.rate,
+          `Line ${line.id} taxCategory.rate must be string`,
+        ).toBe('string');
+        expect(
+          typeof line.taxCategory.taxableAmount,
+          `Line ${line.id} taxCategory.taxableAmount must be string`,
+        ).toBe('string');
+        expect(
+          typeof line.taxCategory.taxAmount,
+          `Line ${line.id} taxCategory.taxAmount must be string`,
+        ).toBe('string');
       }
     });
 

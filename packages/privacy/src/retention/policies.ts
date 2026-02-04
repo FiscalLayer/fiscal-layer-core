@@ -9,7 +9,8 @@ export function createZeroRetentionPolicy(): RetentionPolicy {
   return {
     id: 'zero-retention-v1',
     name: 'Zero Retention Policy',
-    description: 'Original documents are never persisted. Only compliance fingerprints and masked summaries are stored.',
+    description:
+      'Original documents are never persisted. Only compliance fingerprints and masked summaries are stored.',
     version: '1.0.0',
     createdAt: new Date().toISOString(),
     isDefault: true,
@@ -82,7 +83,8 @@ export function createAuditRetentionPolicy(): RetentionPolicy {
   return {
     id: 'audit-retention-v1',
     name: 'Audit Retention Policy',
-    description: 'Extended retention for audit purposes. Original documents are still not persisted.',
+    description:
+      'Extended retention for audit purposes. Original documents are still not persisted.',
     version: '1.0.0',
     createdAt: new Date().toISOString(),
     isDefault: false,

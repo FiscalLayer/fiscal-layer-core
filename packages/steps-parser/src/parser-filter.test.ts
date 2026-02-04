@@ -11,7 +11,13 @@ import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { parserFilter, createParserFilter } from './parser-filter.js';
-import type { FilterContext, RawInvoice, ValidationOptions, StepResult, ExecutionPlan } from '@fiscal-layer/contracts';
+import type {
+  FilterContext,
+  RawInvoice,
+  ValidationOptions,
+  StepResult,
+  ExecutionPlan,
+} from '@fiscal-layer/contracts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const fixturesDir = join(__dirname, '..', 'fixtures');
@@ -137,7 +143,7 @@ describe('ParserFilter', () => {
       expect(result.execution).toBe('ran');
       // Empty content produces multiple diagnostics: PARSE-001 (empty), PARSE-FORMAT-WARN, PARSE-XML
       expect(result.diagnostics.length).toBeGreaterThanOrEqual(1);
-      expect(result.diagnostics.some(d => d.code === 'PARSE-001')).toBe(true);
+      expect(result.diagnostics.some((d) => d.code === 'PARSE-001')).toBe(true);
     });
 
     it('should return error diagnostics for non-XML content', async () => {
@@ -146,12 +152,15 @@ describe('ParserFilter', () => {
       const result = await parserFilter.execute(context);
 
       expect(result.execution).toBe('ran');
-      expect(result.diagnostics.some(d => d.code === 'PARSE-002' || d.code === 'PARSE-XML')).toBe(true);
+      expect(result.diagnostics.some((d) => d.code === 'PARSE-002' || d.code === 'PARSE-XML')).toBe(
+        true,
+      );
     });
 
     it('should return error diagnostics for oversized content', async () => {
       // Create content larger than 10MB
-      const largeContent = '<?xml version="1.0"?><Invoice>' + 'x'.repeat(11 * 1024 * 1024) + '</Invoice>';
+      const largeContent =
+        '<?xml version="1.0"?><Invoice>' + 'x'.repeat(11 * 1024 * 1024) + '</Invoice>';
       const context = createMockContext(largeContent);
 
       const result = await parserFilter.execute(context);
@@ -166,7 +175,7 @@ describe('ParserFilter', () => {
       const result = await parserFilter.execute(context);
 
       // Error message should not contain file paths
-      const errorMessages = result.diagnostics.map(d => d.message).join(' ');
+      const errorMessages = result.diagnostics.map((d) => d.message).join(' ');
       expect(errorMessages).not.toMatch(/\/Users\//);
       expect(errorMessages).not.toMatch(/\/home\//);
       expect(errorMessages).not.toMatch(/C:\\/);

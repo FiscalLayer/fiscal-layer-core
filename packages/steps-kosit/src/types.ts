@@ -273,11 +273,7 @@ export function kositItemsToDiagnostics(
       code: item.ruleId,
       message: item.message,
       severity:
-        item.severity === 'error'
-          ? 'error'
-          : item.severity === 'warning'
-            ? 'warning'
-            : 'info',
+        item.severity === 'error' ? 'error' : item.severity === 'warning' ? 'warning' : 'info',
       category: 'business-rule',
       source: filterId,
     };

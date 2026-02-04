@@ -1,4 +1,9 @@
-import type { MaskingPolicy, MaskingRule, MaskingResult, MaskingStrategy } from '@fiscal-layer/contracts';
+import type {
+  MaskingPolicy,
+  MaskingRule,
+  MaskingResult,
+  MaskingStrategy,
+} from '@fiscal-layer/contracts';
 
 /**
  * DataMasker applies masking rules to objects containing sensitive data.
@@ -107,7 +112,9 @@ export class DataMasker {
         return '[REDACTED]';
 
       case 'partial': {
-        const config = rule.config as { showStart?: number; showEnd?: number; maskChar?: string } | undefined;
+        const config = rule.config as
+          | { showStart?: number; showEnd?: number; maskChar?: string }
+          | undefined;
         const showStart = config?.showStart ?? 2;
         const showEnd = config?.showEnd ?? 2;
         const maskChar = config?.maskChar ?? '*';

@@ -7,7 +7,11 @@
  */
 
 export { createLogger, type Logger, type LogLevel } from './logging/logger.js';
-export { createSafeLogger, assertSafeLogging, type SafeLoggerOptions } from './logging/safe-logger.js';
+export {
+  createSafeLogger,
+  assertSafeLogging,
+  type SafeLoggerOptions,
+} from './logging/safe-logger.js';
 export { FiscalLayerError, ValidationError, ConfigurationError } from './errors/errors.js';
 export {
   generateId,

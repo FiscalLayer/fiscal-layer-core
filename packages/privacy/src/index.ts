@@ -13,4 +13,9 @@ export { createZeroRetentionPolicy, createAuditRetentionPolicy } from './retenti
 export { RetentionEnforcer } from './retention/enforcer.js';
 
 // Re-export types
-export type { MaskingPolicy, MaskingRule, RetentionPolicy, RetentionRule } from '@fiscal-layer/contracts';
+export type {
+  MaskingPolicy,
+  MaskingRule,
+  RetentionPolicy,
+  RetentionRule,
+} from '@fiscal-layer/contracts';

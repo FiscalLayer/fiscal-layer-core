@@ -40,11 +40,7 @@ export interface VatIdValidationResult {
 /**
  * Error codes for VAT ID validation failures
  */
-export type VatIdErrorCode =
-  | 'EMPTY_INPUT'
-  | 'TOO_SHORT'
-  | 'UNKNOWN_COUNTRY'
-  | 'INVALID_FORMAT';
+export type VatIdErrorCode = 'EMPTY_INPUT' | 'TOO_SHORT' | 'UNKNOWN_COUNTRY' | 'INVALID_FORMAT';
 
 /**
  * Normalize a VAT ID for validation and comparison.

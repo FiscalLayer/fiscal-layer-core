@@ -10,15 +10,15 @@ FiscalLayer Core is the open-source validation engine that powers [FiscalLayer](
 
 ## Packages
 
-| Package | Description |
-|---------|-------------|
-| `@fiscal-layer/contracts` | TypeScript interfaces, types, failure policies |
-| `@fiscal-layer/kernel` | Pipeline orchestrator, fingerprint generation, event hooks |
-| `@fiscal-layer/filters-core` | Parser, KoSIT validator, Semantic Risk analyzer |
-| `@fiscal-layer/steps-kosit` | KoSIT validator wrapper with version tracking |
-| `@fiscal-layer/privacy` | PII masking, retention policies |
-| `@fiscal-layer/shared` | Safe logger, decimal arithmetic, canonical hashing |
-| `@fiscal-layer/storage` | TempStore abstraction, SecureDeleteFilter |
+| Package                      | Description                                                |
+| ---------------------------- | ---------------------------------------------------------- |
+| `@fiscal-layer/contracts`    | TypeScript interfaces, types, failure policies             |
+| `@fiscal-layer/kernel`       | Pipeline orchestrator, fingerprint generation, event hooks |
+| `@fiscal-layer/filters-core` | Parser, KoSIT validator, Semantic Risk analyzer            |
+| `@fiscal-layer/steps-kosit`  | KoSIT validator wrapper with version tracking              |
+| `@fiscal-layer/privacy`      | PII masking, retention policies                            |
+| `@fiscal-layer/shared`       | Safe logger, decimal arithmetic, canonical hashing         |
+| `@fiscal-layer/storage`      | TempStore abstraction, SecureDeleteFilter                  |
 
 ## Quick Start
 
@@ -40,11 +40,7 @@ import { MemoryTempStore } from '@fiscal-layer/storage';
 
 // Create pipeline
 const engine = new PipelineEngine({
-  filters: [
-    new ParserFilter(),
-    new KoSITFilter(),
-    new SemanticRiskFilter(),
-  ],
+  filters: [new ParserFilter(), new KoSITFilter(), new SemanticRiskFilter()],
   tempStore: new MemoryTempStore(),
 });
 
@@ -122,7 +118,7 @@ Financial precision with Banker's rounding:
 import { multiply } from '@fiscal-layer/shared';
 
 const total = multiply('100.00', '1.19', {
-  roundingMode: 'ROUND_HALF_EVEN'
+  roundingMode: 'ROUND_HALF_EVEN',
 });
 ```
 
@@ -194,10 +190,11 @@ We welcome contributions! Please see our [Contributing Guide](./CONTRIBUTING.md)
 Apache License 2.0 - See [LICENSE](./LICENSE) for details.
 
 **Why Apache 2.0?**
+
 - Explicit patent grants protect contributors and users
 - Enterprise-friendly for German/EU compliance software
 - Allows commercial use with attribution
 
 ---
 
-*This repository is automatically synced from the FiscalLayer private monorepo.*
+_This repository is automatically synced from the FiscalLayer private monorepo._

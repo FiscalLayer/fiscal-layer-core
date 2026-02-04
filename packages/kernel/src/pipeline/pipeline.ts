@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-deprecated -- Using deprecated types for backward compatibility */
 /* eslint-disable @typescript-eslint/no-confusing-void-expression -- Async void callbacks */
-/* eslint-disable @typescript-eslint/restrict-template-expressions -- Number in template literals */
+
 /* eslint-disable @typescript-eslint/prefer-optional-chain -- Explicit null checks for clarity */
 /* eslint-disable no-case-declarations -- Lexical declarations in case blocks intentional */
 import type {
@@ -27,10 +27,7 @@ import type {
   DecisionReasonCode,
   StepDecisionAnalysis,
 } from '@fiscal-layer/contracts';
-import {
-  ValidationStatusValues,
-  FinalDecisionValues,
-} from '@fiscal-layer/contracts';
+import { ValidationStatusValues, FinalDecisionValues } from '@fiscal-layer/contracts';
 import { computeConfigHash } from '@fiscal-layer/shared';
 import { ValidationContextImpl } from '../context/context.js';
 import { createFingerprint } from '../fingerprint/generator.js';
@@ -143,10 +140,7 @@ export class Pipeline implements PipelineInterface {
     const requestOverrides: RequestOverrides | undefined = input.options?.metadata
       ? { metadata: input.options.metadata }
       : undefined;
-    const effectiveConfigResult = buildEffectiveConfig(
-      this.config.tenantConfig,
-      requestOverrides,
-    );
+    const effectiveConfigResult = buildEffectiveConfig(this.config.tenantConfig, requestOverrides);
 
     // Get engine versions for audit trail
     const versionOverrides = this.config.engineVersionOverrides;
@@ -193,8 +187,16 @@ export class Pipeline implements PipelineInterface {
 
       // Track invoice temp key for cleanup (raw invoice stored externally)
       // Standard key format: "raw-invoice:{runId}"
-      tempKeyTracker.track(`raw-invoice:${context.runId}`, 'raw invoice content', 'pipeline:execute');
-      tempKeyTracker.track(`parsed-invoice:${context.runId}`, 'parsed invoice data', 'pipeline:execute');
+      tempKeyTracker.track(
+        `raw-invoice:${context.runId}`,
+        'raw invoice content',
+        'pipeline:execute',
+      );
+      tempKeyTracker.track(
+        `parsed-invoice:${context.runId}`,
+        'parsed invoice data',
+        'pipeline:execute',
+      );
 
       // Execute steps
       await this.executeSteps(plan.steps, context);
@@ -456,7 +458,10 @@ export class Pipeline implements PipelineInterface {
       context.addDiagnostics(result.diagnostics);
 
       // Update parsed invoice if parser (support both legacy 'parser' and 'steps-parser' IDs)
-      if ((step.filterId === 'parser' || step.filterId === 'steps-parser') && result.metadata?.['parsedInvoice']) {
+      if (
+        (step.filterId === 'parser' || step.filterId === 'steps-parser') &&
+        result.metadata?.['parsedInvoice']
+      ) {
         context.setParsedInvoice(result.metadata['parsedInvoice'] as never);
       }
 
@@ -491,11 +496,18 @@ export class Pipeline implements PipelineInterface {
     }
   }
 
-  private async withTimeout<T>(promise: Promise<T>, timeoutMs: number, filterId: string): Promise<T> {
+  private async withTimeout<T>(
+    promise: Promise<T>,
+    timeoutMs: number,
+    filterId: string,
+  ): Promise<T> {
     return Promise.race([
       promise,
       new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error(`Filter '${filterId}' timed out after ${timeoutMs}ms`)), timeoutMs),
+        setTimeout(
+          () => reject(new Error(`Filter '${filterId}' timed out after ${timeoutMs}ms`)),
+          timeoutMs,
+        ),
       ),
     ]);
   }
@@ -691,9 +703,7 @@ export class Pipeline implements PipelineInterface {
     plan: ExecutionPlan,
     filterId: string,
   ): Record<string, unknown> | undefined {
-    const findConfig = (
-      steps: ExecutionStep[],
-    ): Record<string, unknown> | undefined => {
+    const findConfig = (steps: ExecutionStep[]): Record<string, unknown> | undefined => {
       for (const step of steps) {
         if (step.filterId === filterId) {
           return step.config;

@@ -4,7 +4,14 @@
  * Note: PDF is treated as a single format type. The distinction between
  * pdf-text and pdf-scanned is tracked via DocumentNature in extensions.
  */
-export type InvoiceFormat = 'xrechnung' | 'zugferd' | 'peppol-bis' | 'ubl' | 'cii' | 'pdf' | 'unknown';
+export type InvoiceFormat =
+  | 'xrechnung'
+  | 'zugferd'
+  | 'peppol-bis'
+  | 'ubl'
+  | 'cii'
+  | 'pdf'
+  | 'unknown';
 
 /**
  * Raw invoice input before parsing

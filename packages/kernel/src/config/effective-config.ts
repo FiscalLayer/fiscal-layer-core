@@ -221,9 +221,9 @@ export function getEngineVersions(options?: EngineVersionOptions): EngineVersion
  * @param registry - The plugin registry
  * @returns Map of filterId -> version
  */
-export function extractFilterVersions(
-  registry: { list: () => { filter: { id: string; version: string } }[] },
-): Record<string, string> {
+export function extractFilterVersions(registry: {
+  list: () => { filter: { id: string; version: string } }[];
+}): Record<string, string> {
   const versions: Record<string, string> = {};
   for (const registered of registry.list()) {
     versions[registered.filter.id] = registered.filter.version;

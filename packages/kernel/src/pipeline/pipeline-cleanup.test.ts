@@ -78,9 +78,25 @@ const createMockFilter = (
     // In the new model, validation failures produce error diagnostics
     const diagnostics =
       status === 'failed'
-        ? [{ code: `${id.toUpperCase()}-001`, severity: 'error' as const, message: 'Mock validation error', category: 'schema' as const, source: id }]
+        ? [
+            {
+              code: `${id.toUpperCase()}-001`,
+              severity: 'error' as const,
+              message: 'Mock validation error',
+              category: 'schema' as const,
+              source: id,
+            },
+          ]
         : status === 'warning'
-          ? [{ code: `${id.toUpperCase()}-002`, severity: 'warning' as const, message: 'Mock validation warning', category: 'business-rule' as const, source: id }]
+          ? [
+              {
+                code: `${id.toUpperCase()}-002`,
+                severity: 'warning' as const,
+                message: 'Mock validation warning',
+                category: 'business-rule' as const,
+                source: id,
+              },
+            ]
           : [];
 
     return Promise.resolve({

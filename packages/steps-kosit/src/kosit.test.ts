@@ -33,7 +33,6 @@ function deriveStepStatus(result: StepResult): StepStatus {
     case 'skipped':
       return 'skipped';
     case 'errored':
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- error?.name may be undefined
       if (result.error?.name?.toLowerCase().includes('timeout')) return 'timeout';
       return 'error';
     case 'ran': {
@@ -228,9 +227,7 @@ describe('MockKositRunner', () => {
     it('should throw when validating after close', async () => {
       await runner.close();
 
-      await expect(runner.validate(VALID_XRECHNUNG_XML)).rejects.toThrow(
-        'KositRunner is closed'
-      );
+      await expect(runner.validate(VALID_XRECHNUNG_XML)).rejects.toThrow('KositRunner is closed');
     });
 
     it('should return version info', async () => {
@@ -313,8 +310,7 @@ describe('parseKositReport', () => {
     expect(result.valid).toBe(false);
     // Either a parse error or just no valid report structure
     expect(
-      result.items.some((i) => i.ruleId === 'KOSIT-PARSE-ERROR') ||
-      result.items.length === 0
+      result.items.some((i) => i.ruleId === 'KOSIT-PARSE-ERROR') || result.items.length === 0,
     ).toBe(true);
   });
 
@@ -400,9 +396,7 @@ describe('createKositFilter', () => {
 
     it('should fail on validation errors', async () => {
       const filter = createKositFilter({
-        runner: createFixedErrorRunner([
-          { ruleId: 'BR-01', severity: 'error', message: 'Error' },
-        ]),
+        runner: createFixedErrorRunner([{ ruleId: 'BR-01', severity: 'error', message: 'Error' }]),
       });
 
       await filter.onInit?.();

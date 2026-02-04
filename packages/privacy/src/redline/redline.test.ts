@@ -230,9 +230,7 @@ describe('Red Line Tests - Privacy Boundaries', () => {
             iban: 'DE75512108001245126199',
           },
         },
-        diagnostics: [
-          { code: 'BR-DE-01', message: 'Test diagnostic' },
-        ],
+        diagnostics: [{ code: 'BR-DE-01', message: 'Test diagnostic' }],
       };
 
       const masker = new DataMasker(createStrictMaskingPolicy());

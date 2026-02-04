@@ -131,7 +131,9 @@ describe('detectInvoiceFormatFromXml', () => {
   describe('Edge cases', () => {
     it('should handle XML with BOM', () => {
       const bom = '\uFEFF';
-      const xml = bom + '<?xml version="1.0"?><Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"><cbc:CustomizationID xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">urn:xoev-de:kosit:standard:xrechnung_3.0</cbc:CustomizationID></Invoice>';
+      const xml =
+        bom +
+        '<?xml version="1.0"?><Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"><cbc:CustomizationID xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">urn:xoev-de:kosit:standard:xrechnung_3.0</cbc:CustomizationID></Invoice>';
       const result = detectInvoiceFormatFromXml(xml);
 
       expect(result.format).toBe('xrechnung');

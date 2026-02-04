@@ -91,7 +91,12 @@ export function createStrictMaskingPolicy(): MaskingPolicy {
       { fieldPath: '*.name', strategy: 'hash', priority: 20 },
       { fieldPath: '*.companyName', strategy: 'hash', priority: 20 },
       { fieldPath: '*.city', strategy: 'redact', priority: 20 },
-      { fieldPath: '*.postalCode', strategy: 'partial', config: { showStart: 2, showEnd: 0 }, priority: 20 },
+      {
+        fieldPath: '*.postalCode',
+        strategy: 'partial',
+        config: { showStart: 2, showEnd: 0 },
+        priority: 20,
+      },
       { fieldPath: '*.taxNumber', strategy: 'redact', priority: 20 },
       { fieldPath: '*.mobile', strategy: 'redact', priority: 20 },
       { fieldPath: '*.contactEmail', strategy: 'redact', priority: 20 },
@@ -108,11 +113,12 @@ export function createStrictMaskingPolicy(): MaskingPolicy {
     ],
 
     piiPatterns: [
-      ...defaultPolicy.piiPatterns ?? [],
+      ...(defaultPolicy.piiPatterns ?? []),
       // Address pattern
       {
         name: 'address',
-        pattern: '\\d+\\s+[A-Za-z]+\\s+(Str|Street|Road|Ave|Avenue|Blvd|Way|Lane|Dr|Drive|Straße|Weg|Platz)',
+        pattern:
+          '\\d+\\s+[A-Za-z]+\\s+(Str|Street|Road|Ave|Avenue|Blvd|Way|Lane|Dr|Drive|Straße|Weg|Platz)',
         strategy: 'redact',
       },
     ],

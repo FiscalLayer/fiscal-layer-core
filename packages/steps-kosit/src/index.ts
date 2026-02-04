@@ -13,7 +13,11 @@
 export * from './types.js';
 
 // Runners
-export { MockKositRunner, createAlwaysValidRunner, createFixedErrorRunner } from './mock-kosit-runner.js';
+export {
+  MockKositRunner,
+  createAlwaysValidRunner,
+  createFixedErrorRunner,
+} from './mock-kosit-runner.js';
 export {
   DockerKositRunner,
   parseKositReport,

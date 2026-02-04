@@ -16,9 +16,7 @@ export class MemoryCleanupQueue implements CleanupQueue {
   private readonly completedKeys = new Set<string>();
   private readonly failedKeys = new Map<string, string>(); // key -> error
 
-  async enqueue(
-    record: Omit<FailedDeleteRecord, 'failedAt' | 'retryCount'>,
-  ): Promise<void> {
+  async enqueue(record: Omit<FailedDeleteRecord, 'failedAt' | 'retryCount'>): Promise<void> {
     const existing = this.queue.get(record.key);
 
     this.queue.set(record.key, {

@@ -322,8 +322,10 @@ export interface ValidationReport {
 /**
  * Masked report safe for logging and long-term storage
  */
-export interface MaskedValidationReport
-  extends Omit<ValidationReport, 'parsedInvoice' | 'diagnostics'> {
+export interface MaskedValidationReport extends Omit<
+  ValidationReport,
+  'parsedInvoice' | 'diagnostics'
+> {
   /**
    * Diagnostics with sensitive data masked
    */

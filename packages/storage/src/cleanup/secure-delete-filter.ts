@@ -73,9 +73,10 @@ export class SecureDeleteFilter {
         const enqueueRecord: Omit<FailedDeleteRecord, 'failedAt' | 'retryCount'> = {
           key,
           maxRetries: 3,
-          lastError: settledResult.reason instanceof Error
-            ? settledResult.reason.message
-            : String(settledResult.reason),
+          lastError:
+            settledResult.reason instanceof Error
+              ? settledResult.reason.message
+              : String(settledResult.reason),
         };
         if (options.correlationId !== undefined) {
           enqueueRecord.correlationId = options.correlationId;

@@ -13,11 +13,7 @@
 
 export { Pipeline } from './pipeline/pipeline.js';
 export { PluginRegistryImpl } from './registry/registry.js';
-export {
-  ValidationContextImpl,
-  defaultClock,
-  defaultIdGenerator,
-} from './context/context.js';
+export { ValidationContextImpl, defaultClock, defaultIdGenerator } from './context/context.js';
 
 // Determinism support: injectable clock and ID generator for testing/audits
 export type { Clock, IdGenerator, ContextInit } from './context/context.js';
@@ -43,11 +39,7 @@ export {
   DEFAULT_PIPELINE_CONFIG,
 } from './config/effective-config.js';
 
-export type {
-  TenantConfig,
-  RequestOverrides,
-  EffectiveConfig,
-} from './config/effective-config.js';
+export type { TenantConfig, RequestOverrides, EffectiveConfig } from './config/effective-config.js';
 
 export { generateFingerprintId, createFingerprint } from './fingerprint/generator.js';
 

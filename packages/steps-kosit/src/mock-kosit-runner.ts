@@ -116,10 +116,7 @@ export class MockKositRunner implements KositRunner {
     };
   }
 
-  validate(
-    xml: string,
-    options?: KositValidateOptions,
-  ): Promise<KositValidationResult> {
+  validate(xml: string, options?: KositValidateOptions): Promise<KositValidationResult> {
     if (this.closed) {
       return Promise.reject(new Error('KositRunner is closed'));
     }
@@ -144,8 +141,7 @@ export class MockKositRunner implements KositRunner {
 
     // Check for basic invoice structure (with optional namespace prefix)
     const hasInvoiceRoot =
-      /<(?:[a-z]+:)?Invoice\b/i.test(xml) ||
-      /<(?:[a-z]+:)?CrossIndustryInvoice\b/i.test(xml);
+      /<(?:[a-z]+:)?Invoice\b/i.test(xml) || /<(?:[a-z]+:)?CrossIndustryInvoice\b/i.test(xml);
 
     if (!hasInvoiceRoot) {
       items.push({
@@ -192,12 +188,8 @@ export class MockKositRunner implements KositRunner {
 
     const result: KositValidationResult = {
       valid: summary.errors === 0,
-      schemaValid: !items.some(
-        (i) => i.severity === 'error' && i.ruleId.startsWith('XML-'),
-      ),
-      schematronValid: !items.some(
-        (i) => i.severity === 'error' && i.ruleId.startsWith('BR-'),
-      ),
+      schemaValid: !items.some((i) => i.severity === 'error' && i.ruleId.startsWith('XML-')),
+      schematronValid: !items.some((i) => i.severity === 'error' && i.ruleId.startsWith('BR-')),
       items,
       summary,
       profile,

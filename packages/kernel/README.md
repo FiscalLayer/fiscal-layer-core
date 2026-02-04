@@ -10,12 +10,12 @@ This package contains the core pipeline orchestrator that executes validation fi
 
 Kernel is the orchestration layer. It coordinates filter execution, collects results, and produces execution summaries. It does NOT make compliance decisions.
 
-| Kernel Outputs | NOT Kernel's Job |
-|----------------|------------------|
-| `reportState` (execution lifecycle) | ALLOW / BLOCK / APPROVED / REJECTED |
-| `diagnostics` (collected from steps) | Severity interpretation |
-| `execution` (ran/skipped/errored) | Risk scoring decisions |
-| `timing` (performance metrics) | Policy thresholds |
+| Kernel Outputs                       | NOT Kernel's Job                    |
+| ------------------------------------ | ----------------------------------- |
+| `reportState` (execution lifecycle)  | ALLOW / BLOCK / APPROVED / REJECTED |
+| `diagnostics` (collected from steps) | Severity interpretation             |
+| `execution` (ran/skipped/errored)    | Risk scoring decisions              |
+| `timing` (performance metrics)       | Policy thresholds                   |
 
 **Any aggregation beyond counting belongs to `@fiscal-layer/decision-engine`.**
 
@@ -23,14 +23,14 @@ Kernel is the orchestration layer. It coordinates filter execution, collects res
 
 ```typescript
 // CORRECT: Kernel outputs execution facts
-report.reportState    // 'COMPLETE' | 'PARTIAL' | 'EMPTY'
-report.steps          // array of StepResult with diagnostics
-report.diagnostics    // flattened list of all diagnostics
+report.reportState; // 'COMPLETE' | 'PARTIAL' | 'EMPTY'
+report.steps; // array of StepResult with diagnostics
+report.diagnostics; // flattened list of all diagnostics
 
 // WRONG: Kernel should NEVER output these
-report.status         // ❌ 'APPROVED' / 'REJECTED' - decision logic
-report.decision       // ❌ 'ALLOW' / 'BLOCK' - policy judgment
-report.riskLevel      // ❌ 'HIGH' / 'MEDIUM' / 'LOW' - interpretation
+report.status; // ❌ 'APPROVED' / 'REJECTED' - decision logic
+report.decision; // ❌ 'ALLOW' / 'BLOCK' - policy judgment
+report.riskLevel; // ❌ 'HIGH' / 'MEDIUM' / 'LOW' - interpretation
 ```
 
 **All decision-related logic lives in the Private layer (`@fiscal-layer/decision-engine`).**
@@ -87,18 +87,18 @@ const report = await pipeline.execute({
   },
   options: {
     locale: 'de-DE',
-    correlationId: 'req-123',  // Required
+    correlationId: 'req-123', // Required
   },
 });
 
-console.log(report.status);           // 'APPROVED' | 'REJECTED' | ...
-console.log(report.fingerprint.id);   // 'FL-abc123...'
-console.log(report.planSnapshot.configHash);  // 'sha256:...'
+console.log(report.status); // 'APPROVED' | 'REJECTED' | ...
+console.log(report.fingerprint.id); // 'FL-abc123...'
+console.log(report.planSnapshot.configHash); // 'sha256:...'
 
 // Get usage summary for billing
 const events = billingEmitter.getEvents();
 const usage = calculateUsageSummary(events, report);
-console.log(usage.totalBillableUnits);  // 2 (e.g., VIES + ECB)
+console.log(usage.totalBillableUnits); // 2 (e.g., VIES + ECB)
 ```
 
 ## Architecture
@@ -174,7 +174,7 @@ const events = emitter.getEvents();
 const usage = calculateUsageSummary(events, report);
 
 // Usage contains step-level attribution
-usage.steps.forEach(step => {
+usage.steps.forEach((step) => {
   console.log(`${step.verifierName}: ${step.units} ${step.unitType} (billable: ${step.billable})`);
 });
 // VIES VAT Validator: 1 vies_lookup (billable: true)

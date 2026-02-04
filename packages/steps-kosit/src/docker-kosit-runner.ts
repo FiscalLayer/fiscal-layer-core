@@ -30,7 +30,7 @@ export interface HttpClient {
   post(
     url: string,
     body: string,
-    options?: { headers?: Record<string, string>; signal?: AbortSignal }
+    options?: { headers?: Record<string, string>; signal?: AbortSignal },
   ): Promise<HttpResponse>;
 }
 
@@ -199,7 +199,12 @@ export async function isDockerAvailable(): Promise<boolean> {
  */
 export async function checkDaemonHealth(
   url: string,
-  options?: { retries?: number; timeoutMs?: number; retryDelayMs?: number; httpClient?: HttpClient }
+  options?: {
+    retries?: number;
+    timeoutMs?: number;
+    retryDelayMs?: number;
+    httpClient?: HttpClient;
+  },
 ): Promise<boolean> {
   const retries = options?.retries ?? 3;
   const timeoutMs = options?.timeoutMs ?? 10000; // 10 seconds for cold start
@@ -391,8 +396,7 @@ export function parseKositReport(reportXml: string): KositValidationResult {
     const accept = hasAccept && !hasReject;
 
     // Extract scenario name (can be in various places depending on namespace handling)
-    const scenarioMatched =
-      report['rep:scenarioMatched'] ?? report.scenarioMatched ?? {};
+    const scenarioMatched = report['rep:scenarioMatched'] ?? report.scenarioMatched ?? {};
     const innerScenario = scenarioMatched['s:scenario'] ?? scenarioMatched.scenario;
     const scenarioName: string =
       innerScenario?.['s:name'] ??
@@ -433,7 +437,9 @@ export function parseKositReport(reportXml: string): KositValidationResult {
       // KoSIT uses IDs like: val-xsd (schema), val-sch.1, val-sch.2 (schematron)
       const stepId: string = step['@_id'] ?? step['rep:id'] ?? '';
       const stepIdLower = stepId.toLowerCase();
-      const isSchemaStep = stepIdLower.includes('xsd') || stepIdLower.includes('xml') ||
+      const isSchemaStep =
+        stepIdLower.includes('xsd') ||
+        stepIdLower.includes('xml') ||
         (stepIdLower.includes('schema') && !stepIdLower.includes('schematron'));
       const isSchematronStep = stepIdLower.includes('sch') || stepIdLower.includes('schematron');
 
@@ -544,43 +550,34 @@ function sanitizeMessage(message: string): string {
   // e.g., <cbc:InvoiceNumber>INV-001</cbc:InvoiceNumber> -> [XML:REDACTED]
   sanitized = sanitized.replace(
     /<[a-zA-Z][a-zA-Z0-9:_-]*[^>]*>[^<]*<\/[a-zA-Z][a-zA-Z0-9:_-]*>/g,
-    '[XML:REDACTED]'
+    '[XML:REDACTED]',
   );
 
   // Remove self-closing XML tags
-  sanitized = sanitized.replace(
-    /<[a-zA-Z][a-zA-Z0-9:_-]*[^>]*\/>/g,
-    ''
-  );
+  sanitized = sanitized.replace(/<[a-zA-Z][a-zA-Z0-9:_-]*[^>]*\/>/g, '');
 
   // Remove remaining XML-like opening/closing tags without content
-  sanitized = sanitized.replace(
-    /<\/?[a-zA-Z][a-zA-Z0-9:_-]*[^>]*>/g,
-    ''
-  );
+  sanitized = sanitized.replace(/<\/?[a-zA-Z][a-zA-Z0-9:_-]*[^>]*>/g, '');
 
   // Remove potential IBAN patterns
   sanitized = sanitized.replace(
     /\b[A-Z]{2}\d{2}[A-Z0-9]{4}\d{7}[A-Z0-9]{0,16}\b/g,
-    '[IBAN:REDACTED]'
+    '[IBAN:REDACTED]',
   );
 
   // Remove potential email patterns
   sanitized = sanitized.replace(
     /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g,
-    '[EMAIL:REDACTED]'
+    '[EMAIL:REDACTED]',
   );
 
   // Remove potential VAT ID patterns (DE + 9 digits, etc.)
-  sanitized = sanitized.replace(
-    /\b[A-Z]{2}\d{9,11}\b/g,
-    '[VATID:REDACTED]'
-  );
+  sanitized = sanitized.replace(/\b[A-Z]{2}\d{9,11}\b/g, '[VATID:REDACTED]');
 
   // Remove potential phone numbers
   sanitized = sanitized.replace(
     /\b(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g,
-    '[PHONE:REDACTED]'
+    '[PHONE:REDACTED]',
   );
 
   // Truncate long messages
@@ -632,7 +629,10 @@ export type Kosit422Classification = 'no_scenario' | 'system_error';
 
 export class DockerKositRunner implements KositRunner {
   private readonly config: Required<
-    Pick<DockerKositRunnerConfig, 'mode' | 'daemonUrl' | 'daemonImage' | 'cliImage' | 'memoryLimit' | 'cpuLimit' | 'timeoutMs'>
+    Pick<
+      DockerKositRunnerConfig,
+      'mode' | 'daemonUrl' | 'daemonImage' | 'cliImage' | 'memoryLimit' | 'cpuLimit' | 'timeoutMs'
+    >
   > &
     DockerKositRunnerConfig;
 
@@ -675,10 +675,7 @@ export class DockerKositRunner implements KositRunner {
     return this.lastFallbackEvent;
   }
 
-  async validate(
-    xml: string,
-    options?: KositValidateOptions
-  ): Promise<KositValidationResult> {
+  async validate(xml: string, options?: KositValidateOptions): Promise<KositValidationResult> {
     this.checkClosed();
     this.lastFallbackEvent = null;
 
@@ -690,11 +687,10 @@ export class DockerKositRunner implements KositRunner {
     if (effectiveMode === 'auto') {
       // Check daemon health (with caching)
       const now = Date.now();
-      if (
-        this.daemonHealthy === null ||
-        now - this.lastHealthCheck > this.healthCheckInterval
-      ) {
-        this.daemonHealthy = await checkDaemonHealth(this.config.daemonUrl, { httpClient: this.httpClient });
+      if (this.daemonHealthy === null || now - this.lastHealthCheck > this.healthCheckInterval) {
+        this.daemonHealthy = await checkDaemonHealth(this.config.daemonUrl, {
+          httpClient: this.httpClient,
+        });
         this.lastHealthCheck = now;
       }
 
@@ -734,7 +730,7 @@ export class DockerKositRunner implements KositRunner {
    */
   private async validateViaDaemon(
     xml: string,
-    _options?: KositValidateOptions
+    _options?: KositValidateOptions,
   ): Promise<KositValidationResult> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
@@ -742,17 +738,13 @@ export class DockerKositRunner implements KositRunner {
     }, this.config.timeoutMs);
 
     try {
-      const response = await this.httpClient.post(
-        `${this.config.daemonUrl}/validate`,
-        xml,
-        {
-          headers: {
-            'Content-Type': 'application/xml',
-            'Accept': 'application/xml',
-          },
-          signal: controller.signal,
-        }
-      );
+      const response = await this.httpClient.post(`${this.config.daemonUrl}/validate`, xml, {
+        headers: {
+          'Content-Type': 'application/xml',
+          Accept: 'application/xml',
+        },
+        signal: controller.signal,
+      });
 
       clearTimeout(timeoutId);
 
@@ -954,7 +946,7 @@ export class DockerKositRunner implements KositRunner {
 
     // Check if this is a "no matching scenario" case using configurable patterns
     const isNoScenario = this.noScenarioPatterns.some((pattern) =>
-      lowerBody.includes(pattern.toLowerCase())
+      lowerBody.includes(pattern.toLowerCase()),
     );
 
     // Classify and log
@@ -996,9 +988,7 @@ export class DockerKositRunner implements KositRunner {
       'schema',
     ];
 
-    const isParsingError = parsingErrorPatterns.some((pattern) =>
-      lowerBody.includes(pattern)
-    );
+    const isParsingError = parsingErrorPatterns.some((pattern) => lowerBody.includes(pattern));
 
     // Extract a sanitized error message from the response
     let errorMessage = 'KoSIT processing error';
@@ -1055,7 +1045,7 @@ export class DockerKositRunner implements KositRunner {
    */
   private async validateViaCli(
     xml: string,
-    _options?: KositValidateOptions
+    _options?: KositValidateOptions,
   ): Promise<KositValidationResult> {
     // Create temp directory
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'kosit-'));
@@ -1081,10 +1071,7 @@ export class DockerKositRunner implements KositRunner {
   /**
    * Execute Docker CLI command
    */
-  private runDockerCli(
-    tempDir: string,
-    _inputFile: string
-  ): Promise<KositValidationResult> {
+  private runDockerCli(tempDir: string, _inputFile: string): Promise<KositValidationResult> {
     return new Promise((resolve) => {
       const args = [
         'run',
@@ -1156,7 +1143,7 @@ export class DockerKositRunner implements KositRunner {
                 ruleId: 'KOSIT-DOCKER-ERROR',
                 severity: 'error',
                 message: sanitizeMessage(
-                  `Docker command failed with exit code ${String(code ?? 'unknown')}: ${stderr.substring(0, 200)}`
+                  `Docker command failed with exit code ${String(code ?? 'unknown')}: ${stderr.substring(0, 200)}`,
                 ),
               },
             ],
@@ -1205,7 +1192,9 @@ export class DockerKositRunner implements KositRunner {
     }
 
     if (this.config.mode === 'daemon' || this.config.mode === 'auto') {
-      const daemonHealthy = await checkDaemonHealth(this.config.daemonUrl, { httpClient: this.httpClient });
+      const daemonHealthy = await checkDaemonHealth(this.config.daemonUrl, {
+        httpClient: this.httpClient,
+      });
       if (daemonHealthy) {
         return true;
       }
@@ -1221,7 +1210,7 @@ export class DockerKositRunner implements KositRunner {
   getVersion(): Promise<string> {
     this.checkClosed();
     return Promise.resolve(
-      `docker-kosit-runner/${this.config.mode} (daemon: ${this.config.daemonImage}, cli: ${this.config.cliImage})`
+      `docker-kosit-runner/${this.config.mode} (daemon: ${this.config.daemonImage}, cli: ${this.config.cliImage})`,
     );
   }
 

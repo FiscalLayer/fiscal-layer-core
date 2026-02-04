@@ -13,11 +13,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import {
-  DockerKositRunner,
-  isDockerAvailable,
-  checkDaemonHealth,
-} from './docker-kosit-runner.js';
+import { DockerKositRunner, isDockerAvailable, checkDaemonHealth } from './docker-kosit-runner.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -222,10 +218,7 @@ describe.skipIf(!dockerAvailable)('DockerKositRunner Integration', () => {
       } catch (error) {
         // Expected if CLI image is not available
         const err = error as Error;
-        if (
-          !err.message.includes('Docker') &&
-          !err.message.includes('image')
-        ) {
+        if (!err.message.includes('Docker') && !err.message.includes('image')) {
           throw error;
         }
       } finally {
@@ -249,8 +242,8 @@ describe.skipIf(!dockerAvailable)('DockerKositRunner Integration', () => {
             (i) =>
               i.ruleId === 'KOSIT-TIMEOUT' ||
               i.ruleId === 'KOSIT-DOCKER-ERROR' ||
-              i.ruleId === 'KOSIT-SPAWN-ERROR'
-          )
+              i.ruleId === 'KOSIT-SPAWN-ERROR',
+          ),
         ).toBe(true);
       } finally {
         await runner.close();

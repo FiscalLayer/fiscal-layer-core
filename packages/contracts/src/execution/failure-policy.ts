@@ -161,10 +161,7 @@ export function createRetryConfig(overrides: Partial<RetryConfig> = {}): RetryCo
 /**
  * Calculate delay for a given retry attempt with exponential backoff and jitter
  */
-export function calculateRetryDelay(
-  attempt: number,
-  config: RetryConfig,
-): number {
+export function calculateRetryDelay(attempt: number, config: RetryConfig): number {
   const baseDelay = config.initialDelayMs * Math.pow(config.backoffMultiplier, attempt);
   const clampedDelay = Math.min(baseDelay, config.maxDelayMs);
 
@@ -177,10 +174,7 @@ export function calculateRetryDelay(
 /**
  * Check if an error is retryable based on config
  */
-export function isErrorRetryable(
-  error: unknown,
-  config: RetryConfig,
-): boolean {
+export function isErrorRetryable(error: unknown, config: RetryConfig): boolean {
   // Custom check first
   if (config.isRetryable) {
     return config.isRetryable(error);

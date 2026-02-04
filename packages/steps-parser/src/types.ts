@@ -124,15 +124,6 @@ export const FORMAT_PROFILES = {
     'urn:xoev-de:kosit:standard:xrechnung',
     'urn:cen.eu:en16931:2017#compliant#urn:xoev-de:kosit',
   ],
-  ZUGFERD: [
-    'zugferd',
-    'factur-x',
-    'urn:factur-x.eu',
-    'urn:zugferd.de',
-  ],
-  PEPPOL: [
-    'peppol',
-    'urn:fdc:peppol.eu',
-    'urn:www.cenbii.eu:transaction',
-  ],
+  ZUGFERD: ['zugferd', 'factur-x', 'urn:factur-x.eu', 'urn:zugferd.de'],
+  PEPPOL: ['peppol', 'urn:fdc:peppol.eu', 'urn:www.cenbii.eu:transaction'],
 } as const;

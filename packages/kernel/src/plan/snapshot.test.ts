@@ -10,11 +10,14 @@ import {
   verifyPlanHash,
   calculateConfigHash,
 } from './hash.js';
-import {
-  buildEffectiveConfig,
-  getEngineVersions,
-} from '../config/effective-config.js';
-import type { Filter, StepStatus, ExecutionStatus, EngineVersions, ExecutionPlan } from '@fiscal-layer/contracts';
+import { buildEffectiveConfig, getEngineVersions } from '../config/effective-config.js';
+import type {
+  Filter,
+  StepStatus,
+  ExecutionStatus,
+  EngineVersions,
+  ExecutionPlan,
+} from '@fiscal-layer/contracts';
 
 /**
  * Create a test plan that matches the mock filters registered in tests.
@@ -72,11 +75,7 @@ function statusToExecution(status: StepStatus): ExecutionStatus {
 }
 
 // Mock filter for testing
-const createMockFilter = (
-  id: string,
-  version: string,
-  status: StepStatus = 'passed',
-): Filter => ({
+const createMockFilter = (id: string, version: string, status: StepStatus = 'passed'): Filter => ({
   id,
   name: `Mock Filter ${id}`,
   version,
@@ -153,12 +152,7 @@ describe('ExecutionPlanSnapshot', () => {
         kernelVersion: '0.0.1',
       };
 
-      const snapshot = buildExecutionPlanSnapshot(
-        plan,
-        effectiveConfig.config,
-        engineVersions,
-        {},
-      );
+      const snapshot = buildExecutionPlanSnapshot(plan, effectiveConfig.config, engineVersions, {});
 
       // Verify should pass
       expect(verifyPlanHash(snapshot)).toBe(true);
@@ -255,9 +249,7 @@ describe('ExecutionPlanSnapshot', () => {
     it('adding/removing a step should change planHash', () => {
       const plan1 = createTestPlan();
       // Disable a top-level step (not a child step)
-      const plan2 = createPlanBuilder(createTestPlan())
-        .disableStep('fingerprint')
-        .build();
+      const plan2 = createPlanBuilder(createTestPlan()).disableStep('fingerprint').build();
 
       const effectiveConfig = buildEffectiveConfig();
 
@@ -290,12 +282,9 @@ describe('ExecutionPlanSnapshot', () => {
         dictionaryHash: 'sha256:abc123',
       };
 
-      const snapshot = buildExecutionPlanSnapshot(
-        plan,
-        effectiveConfig.config,
-        engineVersions,
-        { parser: '1.0.0' },
-      );
+      const snapshot = buildExecutionPlanSnapshot(plan, effectiveConfig.config, engineVersions, {
+        parser: '1.0.0',
+      });
 
       // Required fields
       expect(snapshot.planId).toBe(plan.id);
@@ -325,12 +314,7 @@ describe('ExecutionPlanSnapshot', () => {
       const effectiveConfig = buildEffectiveConfig();
       const engineVersions: EngineVersions = { kernelVersion: '0.0.1' };
 
-      const snapshot = buildExecutionPlanSnapshot(
-        plan,
-        effectiveConfig.config,
-        engineVersions,
-        {},
-      );
+      const snapshot = buildExecutionPlanSnapshot(plan, effectiveConfig.config, engineVersions, {});
 
       // Parser should be fail_fast (critical validation)
       const parserStep = snapshot.steps.find((s) => s.stepName === 'parser');
@@ -346,12 +330,7 @@ describe('ExecutionPlanSnapshot', () => {
       const effectiveConfig = buildEffectiveConfig();
       const engineVersions: EngineVersions = { kernelVersion: '0.0.1' };
 
-      const snapshot = buildExecutionPlanSnapshot(
-        plan,
-        effectiveConfig.config,
-        engineVersions,
-        {},
-      );
+      const snapshot = buildExecutionPlanSnapshot(plan, effectiveConfig.config, engineVersions, {});
 
       // Convert to string for checking
       const snapshotJson = JSON.stringify(snapshot);
@@ -462,7 +441,9 @@ describe('Pipeline Report Hashes', () => {
     });
 
     // ConfigSnapshotHash should be different
-    expect(report1.planSnapshot.configSnapshotHash).not.toBe(report2.planSnapshot.configSnapshotHash);
+    expect(report1.planSnapshot.configSnapshotHash).not.toBe(
+      report2.planSnapshot.configSnapshotHash,
+    );
   });
 
   it('filter versions from completed steps should match registry', async () => {
@@ -526,10 +507,7 @@ describe('Effective Config', () => {
   });
 
   it('should apply request overrides over tenant config', () => {
-    const result = buildEffectiveConfig(
-      { locale: 'de-DE' },
-      { locale: 'fr-FR', timeoutMs: 5000 },
-    );
+    const result = buildEffectiveConfig({ locale: 'de-DE' }, { locale: 'fr-FR', timeoutMs: 5000 });
 
     expect(result.config['locale']).toBe('fr-FR'); // Request wins
     expect(result.config['defaultFilterTimeout']).toBe(5000); // From request

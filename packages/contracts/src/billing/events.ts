@@ -317,10 +317,9 @@ export function getVerifierName(filterId: string): string {
 /**
  * Get the billing configuration for a filter ID.
  */
-export function getBillingConfig(
-  filterId: string,
-): { billable: boolean; unitType: BillingUnitType } {
-  return (
-    DEFAULT_BILLING_CONFIG[filterId] ?? { billable: false, unitType: 'validation' }
-  );
+export function getBillingConfig(filterId: string): {
+  billable: boolean;
+  unitType: BillingUnitType;
+} {
+  return DEFAULT_BILLING_CONFIG[filterId] ?? { billable: false, unitType: 'validation' };
 }

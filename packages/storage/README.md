@@ -36,7 +36,7 @@ const entry = await store.set('invoice-123', invoiceData, {
 const data = await store.get<InvoiceData>('invoice-123');
 
 // Check TTL
-const remaining = await store.ttl('invoice-123');  // milliseconds
+const remaining = await store.ttl('invoice-123'); // milliseconds
 
 // Secure delete (overwrites before delete)
 await store.secureDelete('invoice-123');
@@ -47,10 +47,10 @@ await store.close();
 
 ### Implementations
 
-| Implementation | Use Case | Backend |
-|----------------|----------|---------|
+| Implementation    | Use Case             | Backend       |
+| ----------------- | -------------------- | ------------- |
 | `MemoryTempStore` | Development, testing | In-memory Map |
-| `RedisTempStore` | Production | Redis |
+| `RedisTempStore`  | Production           | Redis         |
 
 ### Redis TempStore
 
@@ -85,12 +85,12 @@ await queue.enqueue({
 
 // Check pending items
 const pending = await queue.pending();
-console.log(pending.length);  // 1
+console.log(pending.length); // 1
 
 // Process queue (retry deletes)
 const result = await queue.process(tempStore);
-console.log(result.succeeded);  // ['invoice-123']
-console.log(result.failed);     // []
+console.log(result.succeeded); // ['invoice-123']
+console.log(result.failed); // []
 ```
 
 ## SecureDeleteFilter
@@ -116,13 +116,13 @@ await secureDelete.cleanup({
 // Cleanup specific keys
 await secureDelete.cleanup({
   keys: ['invoice-123', 'parsed-123'],
-  maxRetries: 3,  // Queue failures for retry
+  maxRetries: 3, // Queue failures for retry
 });
 
 // Result
-console.log(result.deletedKeys);   // Successfully deleted
-console.log(result.failedKeys);    // Failed (queued for retry)
-console.log(result.queuedForRetry);  // Number queued
+console.log(result.deletedKeys); // Successfully deleted
+console.log(result.failedKeys); // Failed (queued for retry)
+console.log(result.queuedForRetry); // Number queued
 ```
 
 ### Key Categories
@@ -130,21 +130,17 @@ console.log(result.queuedForRetry);  // Number queued
 ```typescript
 import { TEMP_KEY_CATEGORIES } from '@fiscal-layer/storage';
 
-TEMP_KEY_CATEGORIES.RAW_INVOICE      // 'raw-invoice'
-TEMP_KEY_CATEGORIES.PARSED_INVOICE   // 'parsed-invoice'
-TEMP_KEY_CATEGORIES.VALIDATION_RESULT // 'validation-result'
-TEMP_KEY_CATEGORIES.FINGERPRINT      // 'fingerprint'
-TEMP_KEY_CATEGORIES.TEMP_FILE        // 'temp-file'
+TEMP_KEY_CATEGORIES.RAW_INVOICE; // 'raw-invoice'
+TEMP_KEY_CATEGORIES.PARSED_INVOICE; // 'parsed-invoice'
+TEMP_KEY_CATEGORIES.VALIDATION_RESULT; // 'validation-result'
+TEMP_KEY_CATEGORIES.FINGERPRINT; // 'fingerprint'
+TEMP_KEY_CATEGORIES.TEMP_FILE; // 'temp-file'
 ```
 
 ## Guaranteed Cleanup Pattern
 
 ```typescript
-import {
-  MemoryTempStore,
-  MemoryCleanupQueue,
-  SecureDeleteFilter,
-} from '@fiscal-layer/storage';
+import { MemoryTempStore, MemoryCleanupQueue, SecureDeleteFilter } from '@fiscal-layer/storage';
 
 const tempStore = new MemoryTempStore();
 const cleanupQueue = new MemoryCleanupQueue();
@@ -203,9 +199,9 @@ export type {
 
 ```typescript
 const store = new MemoryTempStore({
-  defaultTtlMs: 60000,       // Default TTL (60s)
-  cleanupIntervalMs: 10000,  // Cleanup expired entries every 10s
-  maxEntries: 10000,         // Max entries before eviction
+  defaultTtlMs: 60000, // Default TTL (60s)
+  cleanupIntervalMs: 10000, // Cleanup expired entries every 10s
+  maxEntries: 10000, // Max entries before eviction
 });
 ```
 
@@ -219,6 +215,6 @@ const store = new RedisTempStore({
   db: 0,
   keyPrefix: 'fl:temp:',
   defaultTtlMs: 60000,
-  secureDeleteOverwriteBytes: 64,  // Bytes to overwrite before delete
+  secureDeleteOverwriteBytes: 64, // Bytes to overwrite before delete
 });
 ```

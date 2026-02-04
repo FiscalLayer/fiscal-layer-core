@@ -30,8 +30,4 @@ export const CORE_FILTER_IDS = {
 /**
  * All core filters in recommended execution order
  */
-export const CORE_FILTERS = [
-  'parser',
-  'kosit',
-  'semantic-risk',
-] as const;
+export const CORE_FILTERS = ['parser', 'kosit', 'semantic-risk'] as const;

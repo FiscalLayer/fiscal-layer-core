@@ -1,7 +1,4 @@
-/* eslint-disable @typescript-eslint/require-await -- Promise returned without await for consistency */
-/* eslint-disable @typescript-eslint/restrict-template-expressions -- Number in template literals */
 /* eslint-disable @typescript-eslint/non-nullable-type-assertion-style -- Explicit as syntax */
-/* eslint-disable @typescript-eslint/no-unnecessary-condition -- Defensive null checks */
 /**
  * Parser Filter
  *
@@ -80,18 +77,15 @@ export function createParserFilter(userConfig?: ParserFilterConfig): Filter {
 
         // Size check (no PII in error message)
         if (xml.length > config.maxXmlSize) {
-          return createFailedResult(
-            filter.id,
-            startTime,
-            startedAt,
-            [{
+          return createFailedResult(filter.id, startTime, startedAt, [
+            {
               code: 'PARSE-SIZE',
               message: `Invoice exceeds maximum size (${Math.round(config.maxXmlSize / 1024 / 1024)}MB)`,
               severity: 'error',
               category: 'format',
               source: filter.id,
-            }]
-          );
+            },
+          ]);
         }
 
         // Step 1: Detect format
@@ -103,18 +97,16 @@ export function createParserFilter(userConfig?: ParserFilterConfig): Filter {
         // Check for unknown format
         if (formatResult.format === 'unknown') {
           if (config.failOnUnknownFormat) {
-            return createFailedResult(
-              filter.id,
-              startTime,
-              startedAt,
-              [{
+            return createFailedResult(filter.id, startTime, startedAt, [
+              {
                 code: 'PARSE-FORMAT',
                 message: 'Unable to detect invoice format',
                 severity: 'error',
                 category: 'format',
                 source: filter.id,
-              }, ...diagnostics]
-            );
+              },
+              ...diagnostics,
+            ]);
           }
 
           // Return warning but continue
@@ -135,18 +127,16 @@ export function createParserFilter(userConfig?: ParserFilterConfig): Filter {
           const err = parseError as Error;
 
           if (config.failOnParseError) {
-            return createFailedResult(
-              filter.id,
-              startTime,
-              startedAt,
-              [{
+            return createFailedResult(filter.id, startTime, startedAt, [
+              {
                 code: 'PARSE-XML',
                 message: `Failed to parse invoice XML: ${sanitizeErrorMessage(err.message)}`,
                 severity: 'error',
                 category: 'format',
                 source: filter.id,
-              }, ...diagnostics]
-            );
+              },
+              ...diagnostics,
+            ]);
           }
 
           // Continue with minimal parsed data
@@ -207,18 +197,15 @@ export function createParserFilter(userConfig?: ParserFilterConfig): Filter {
       } catch (error) {
         const err = error as Error;
 
-        return createFailedResult(
-          filter.id,
-          startTime,
-          startedAt,
-          [{
+        return createFailedResult(filter.id, startTime, startedAt, [
+          {
             code: 'PARSE-INTERNAL',
             message: `Internal parser error: ${sanitizeErrorMessage(err.message)}`,
             severity: 'error',
             category: 'internal',
             source: filter.id,
-          }]
-        );
+          },
+        ]);
       }
     },
   };
@@ -239,7 +226,7 @@ function createFailedResult(
   filterId: string,
   startTime: number,
   startedAt: string,
-  diagnostics: Diagnostic[]
+  diagnostics: Diagnostic[],
 ): StepResult {
   return {
     filterId,
@@ -274,7 +261,7 @@ function sanitizeErrorMessage(message: string): string {
  */
 function convertToParsedInvoice(
   canonical: ReturnType<typeof parseXmlToCanonicalInvoice>,
-  formatResult: ParserResult
+  formatResult: ParserResult,
 ): ParsedInvoice {
   // Calculate totals
   const totalAmount = parseFloat(canonical.totals.taxInclusiveAmount) || 0;
@@ -283,18 +270,26 @@ function convertToParsedInvoice(
   // Build seller info with conditional properties (exactOptionalPropertyTypes)
   const sellerInfo: ParsedInvoice['seller'] = { name: canonical.seller.name };
   if (canonical.seller.vatId) sellerInfo.vatId = canonical.seller.vatId;
-  if (canonical.seller.postalAddress?.streetName) sellerInfo.street = canonical.seller.postalAddress.streetName;
-  if (canonical.seller.postalAddress?.cityName) sellerInfo.city = canonical.seller.postalAddress.cityName;
-  if (canonical.seller.postalAddress?.postalZone) sellerInfo.postalCode = canonical.seller.postalAddress.postalZone;
-  if (canonical.seller.postalAddress?.countryCode) sellerInfo.country = canonical.seller.postalAddress.countryCode;
+  if (canonical.seller.postalAddress?.streetName)
+    sellerInfo.street = canonical.seller.postalAddress.streetName;
+  if (canonical.seller.postalAddress?.cityName)
+    sellerInfo.city = canonical.seller.postalAddress.cityName;
+  if (canonical.seller.postalAddress?.postalZone)
+    sellerInfo.postalCode = canonical.seller.postalAddress.postalZone;
+  if (canonical.seller.postalAddress?.countryCode)
+    sellerInfo.country = canonical.seller.postalAddress.countryCode;
 
   // Build buyer info with conditional properties
   const buyerInfo: ParsedInvoice['buyer'] = { name: canonical.buyer.name };
   if (canonical.buyer.vatId) buyerInfo.vatId = canonical.buyer.vatId;
-  if (canonical.buyer.postalAddress?.streetName) buyerInfo.street = canonical.buyer.postalAddress.streetName;
-  if (canonical.buyer.postalAddress?.cityName) buyerInfo.city = canonical.buyer.postalAddress.cityName;
-  if (canonical.buyer.postalAddress?.postalZone) buyerInfo.postalCode = canonical.buyer.postalAddress.postalZone;
-  if (canonical.buyer.postalAddress?.countryCode) buyerInfo.country = canonical.buyer.postalAddress.countryCode;
+  if (canonical.buyer.postalAddress?.streetName)
+    buyerInfo.street = canonical.buyer.postalAddress.streetName;
+  if (canonical.buyer.postalAddress?.cityName)
+    buyerInfo.city = canonical.buyer.postalAddress.cityName;
+  if (canonical.buyer.postalAddress?.postalZone)
+    buyerInfo.postalCode = canonical.buyer.postalAddress.postalZone;
+  if (canonical.buyer.postalAddress?.countryCode)
+    buyerInfo.country = canonical.buyer.postalAddress.countryCode;
 
   const result: ParsedInvoice = {
     format: formatResult.format as InvoiceFormat,

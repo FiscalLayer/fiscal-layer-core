@@ -20,10 +20,10 @@ import type { EngineVersions, PolicyGateDecision } from '@fiscal-layer/contracts
 export type JobStatus =
   | 'pending'
   | 'processing'
-  | 'completed'             // Validation passed (ALLOW)
+  | 'completed' // Validation passed (ALLOW)
   | 'completed_with_warnings' // Validation passed with warnings (ALLOW_WITH_WARNINGS)
-  | 'blocked'               // Rejected by PolicyGate (BLOCK)
-  | 'failed'                // Processing error (not policy rejection)
+  | 'blocked' // Rejected by PolicyGate (BLOCK)
+  | 'failed' // Processing error (not policy rejection)
   | 'cancelled';
 
 /**
@@ -167,4 +167,3 @@ export function numberToPriority(num: number): JobPriority {
   if (num <= 10) return 'normal';
   return 'low';
 }
-

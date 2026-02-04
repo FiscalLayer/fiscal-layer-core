@@ -118,39 +118,27 @@ export class CompositeEventHooks implements KernelEventHooks {
   }
 
   async onPipelineStart(event: PipelineStartEvent): Promise<void> {
-    await Promise.all(
-      this.hooks.map((h) => h.onPipelineStart?.(event)),
-    );
+    await Promise.all(this.hooks.map((h) => h.onPipelineStart?.(event)));
   }
 
   async onPipelineComplete(event: PipelineCompleteEvent): Promise<void> {
-    await Promise.all(
-      this.hooks.map((h) => h.onPipelineComplete?.(event)),
-    );
+    await Promise.all(this.hooks.map((h) => h.onPipelineComplete?.(event)));
   }
 
   async onStepStart(event: StepStartEvent): Promise<void> {
-    await Promise.all(
-      this.hooks.map((h) => h.onStepStart?.(event)),
-    );
+    await Promise.all(this.hooks.map((h) => h.onStepStart?.(event)));
   }
 
   async onStepComplete(event: StepCompleteEvent): Promise<void> {
-    await Promise.all(
-      this.hooks.map((h) => h.onStepComplete?.(event)),
-    );
+    await Promise.all(this.hooks.map((h) => h.onStepComplete?.(event)));
   }
 
   async onReportGenerated(report: ValidationReport): Promise<void> {
-    await Promise.all(
-      this.hooks.map((h) => h.onReportGenerated?.(report)),
-    );
+    await Promise.all(this.hooks.map((h) => h.onReportGenerated?.(report)));
   }
 
   async flush(): Promise<void> {
-    await Promise.all(
-      this.hooks.map((h) => h.flush?.()),
-    );
+    await Promise.all(this.hooks.map((h) => h.flush?.()));
   }
 }
 

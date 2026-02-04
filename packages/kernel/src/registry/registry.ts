@@ -75,9 +75,7 @@ export class PluginRegistryImpl implements PluginRegistry {
 
     if (options?.tags && options.tags.length > 0) {
       const tags = options.tags;
-      result = result.filter((r) =>
-        tags.some((tag) => r.filter.tags?.includes(tag)),
-      );
+      result = result.filter((r) => tags.some((tag) => r.filter.tags?.includes(tag)));
     }
 
     if (options?.enabled !== undefined) {

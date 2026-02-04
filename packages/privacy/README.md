@@ -19,7 +19,11 @@ pnpm add @fiscal-layer/privacy
 ## Usage
 
 ```typescript
-import { DataMasker, createDefaultMaskingPolicy, createZeroRetentionPolicy } from '@fiscal-layer/privacy';
+import {
+  DataMasker,
+  createDefaultMaskingPolicy,
+  createZeroRetentionPolicy,
+} from '@fiscal-layer/privacy';
 
 // Create masker with default policy
 const masker = new DataMasker(createDefaultMaskingPolicy());

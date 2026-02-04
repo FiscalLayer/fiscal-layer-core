@@ -79,7 +79,7 @@ const myFilter: Filter = {
       diagnostics: [],
       durationMs: 0,
     };
-  }
+  },
 };
 
 // Configure retry with budget
@@ -87,7 +87,7 @@ const retryConfig: RetryConfig = {
   maxRetries: 2,
   initialDelayMs: 500,
   backoffMultiplier: 2,
-  totalBudgetMs: 2000,  // Never spend more than 2s on retries
+  totalBudgetMs: 2000, // Never spend more than 2s on retries
 };
 ```
 
@@ -101,10 +101,10 @@ interface RetryConfig {
   initialDelayMs: number;
   backoffMultiplier: number;
   maxDelayMs: number;
-  totalBudgetMs?: number;  // Total time budget for all retries
-  retryableStatusCodes?: number[];  // [408, 429, 500, 502, 503, 504]
-  retryableErrorTypes?: string[];   // ['ETIMEDOUT', 'ECONNRESET', ...]
-  jitterFactor?: number;  // 0.1 = 10% jitter
+  totalBudgetMs?: number; // Total time budget for all retries
+  retryableStatusCodes?: number[]; // [408, 429, 500, 502, 503, 504]
+  retryableErrorTypes?: string[]; // ['ETIMEDOUT', 'ECONNRESET', ...]
+  jitterFactor?: number; // 0.1 = 10% jitter
 }
 ```
 
@@ -112,12 +112,12 @@ interface RetryConfig {
 
 ```typescript
 type BillingUnitType =
-  | 'validation'      // Internal validation
-  | 'vies_lookup'     // VIES VAT lookup (billable)
-  | 'ecb_rate'        // ECB rate fetch (billable)
-  | 'peppol_lookup'   // Peppol directory (billable)
-  | 'fingerprint'     // Fingerprint generation
-  | 'storage_byte'    // Storage bytes
+  | 'validation' // Internal validation
+  | 'vies_lookup' // VIES VAT lookup (billable)
+  | 'ecb_rate' // ECB rate fetch (billable)
+  | 'peppol_lookup' // Peppol directory (billable)
+  | 'fingerprint' // Fingerprint generation
+  | 'storage_byte' // Storage bytes
   | 'custom';
 ```
 

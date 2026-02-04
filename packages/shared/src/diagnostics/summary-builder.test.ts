@@ -8,7 +8,7 @@ import type { Diagnostic } from '@fiscal-layer/contracts';
 function createDiagnostic(
   code: string,
   severity: 'error' | 'warning' | 'info' | 'hint' = 'error',
-  message = 'Test message'
+  message = 'Test message',
 ): Diagnostic {
   return {
     code,
@@ -57,9 +57,7 @@ describe('buildDiagnosticsSummary', () => {
   });
 
   it('should generate correct titleKey and hintKey', () => {
-    const diagnostics: Diagnostic[] = [
-      createDiagnostic('BR-DE-01', 'error'),
-    ];
+    const diagnostics: Diagnostic[] = [createDiagnostic('BR-DE-01', 'error')];
 
     const summary = buildDiagnosticsSummary(diagnostics);
 
@@ -313,13 +311,7 @@ describe('buildDiagnosticsSummary - Privacy Redline Tests', () => {
     ]);
 
     for (const rule of summary.topRules) {
-      expect(Object.keys(rule)).toEqual([
-        'ruleId',
-        'severity',
-        'count',
-        'titleKey',
-        'hintKey',
-      ]);
+      expect(Object.keys(rule)).toEqual(['ruleId', 'severity', 'count', 'titleKey', 'hintKey']);
       // Rule ID should only contain alphanumeric and hyphens
       expect(rule.ruleId).toMatch(/^[A-Z0-9-]+$/);
       // Title key should be a safe i18n key format

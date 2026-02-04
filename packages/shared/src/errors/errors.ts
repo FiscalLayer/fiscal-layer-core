@@ -14,7 +14,7 @@ export class FiscalLayerError extends Error {
     }
 
     // Maintains proper stack trace for where error was thrown
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- captureStackTrace is V8-specific, may not exist
+
     Error.captureStackTrace?.(this, this.constructor);
   }
 

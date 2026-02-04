@@ -41,12 +41,15 @@ export function createLogger(options: LoggerOptions = {}): Logger {
 
   const shouldLog = (level: LogLevel): boolean => LOG_LEVELS[level] >= minLevel;
 
-  const formatMessage = (level: LogLevel, message: string, context?: Record<string, unknown>): string => {
+  const formatMessage = (
+    level: LogLevel,
+    message: string,
+    context?: Record<string, unknown>,
+  ): string => {
     const timestamp = new Date().toISOString();
     const mergedContext = { ...baseContext, ...context };
-    const contextStr = Object.keys(mergedContext).length > 0
-      ? ` ${JSON.stringify(mergedContext)}`
-      : '';
+    const contextStr =
+      Object.keys(mergedContext).length > 0 ? ` ${JSON.stringify(mergedContext)}` : '';
 
     return `[${timestamp}] [${level.toUpperCase()}] [${prefix}] ${message}${contextStr}`;
   };

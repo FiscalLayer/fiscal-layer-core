@@ -114,10 +114,7 @@ function formatDecimal(decimal: DecimalValue, places?: number): string {
 
   // Insert decimal point
   const insertPoint = str.length - scale;
-  let result =
-    scale > 0
-      ? str.slice(0, insertPoint) + '.' + str.slice(insertPoint)
-      : str;
+  let result = scale > 0 ? str.slice(0, insertPoint) + '.' + str.slice(insertPoint) : str;
 
   // Add negative sign
   if (decimal.negative && value !== 0n) {
@@ -227,11 +224,7 @@ export interface DecimalConfig {
 /**
  * Add two decimal amounts.
  */
-export function add(
-  a: DecimalAmount,
-  b: DecimalAmount,
-  config: DecimalConfig = {},
-): DecimalAmount {
+export function add(a: DecimalAmount, b: DecimalAmount, config: DecimalConfig = {}): DecimalAmount {
   const decA = parseDecimal(a);
   const decB = parseDecimal(b);
   const [valA, valB, scale] = normalize(decA, decB);
@@ -328,7 +321,10 @@ export function divide(
   const finalRemainder = quotient % factor;
   const rounded = applyRounding(finalQuotient, finalRemainder, factor, mode);
 
-  return formatDecimal({ value: rounded < 0n ? -rounded : rounded, scale: places, negative }, places);
+  return formatDecimal(
+    { value: rounded < 0n ? -rounded : rounded, scale: places, negative },
+    places,
+  );
 }
 
 /**
@@ -419,7 +415,11 @@ export function round(
  */
 export function sum(amounts: DecimalAmount[], config: DecimalConfig = {}): DecimalAmount {
   if (amounts.length === 0) {
-    return formatDecimal({ value: 0n, scale: config.decimalPlaces ?? DEFAULT_DECIMAL_PLACES, negative: false });
+    return formatDecimal({
+      value: 0n,
+      scale: config.decimalPlaces ?? DEFAULT_DECIMAL_PLACES,
+      negative: false,
+    });
   }
 
   return amounts.reduce((acc, amount) => add(acc, amount, config), '0');

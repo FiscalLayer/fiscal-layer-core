@@ -308,10 +308,7 @@ export class JobRepository {
   /**
    * Get jobs by status (for worker polling or monitoring).
    */
-  async getJobsByStatus(
-    status: JobRecord['status'],
-    limit = 100,
-  ): Promise<JobRecord[]> {
+  async getJobsByStatus(status: JobRecord['status'], limit = 100): Promise<JobRecord[]> {
     const query = `
       SELECT * FROM jobs
       WHERE status = $1

@@ -1,5 +1,10 @@
 /* eslint-disable @typescript-eslint/require-await -- TempStore interface requires async methods, but memory implementation is synchronous */
-import type { TempStore, TempStoreEntry, TempStoreOptions, TempStoreStats } from '@fiscal-layer/contracts';
+import type {
+  TempStore,
+  TempStoreEntry,
+  TempStoreOptions,
+  TempStoreStats,
+} from '@fiscal-layer/contracts';
 
 /**
  * Default TTL: 60 seconds

@@ -121,7 +121,7 @@ const DEFAULT_OPTIONS: Required<DiagnosticsSummaryOptions> = {
  */
 export function buildDiagnosticsSummary(
   diagnostics: readonly Diagnostic[],
-  options?: DiagnosticsSummaryOptions
+  options?: DiagnosticsSummaryOptions,
 ): DiagnosticsSummary {
   const opts = { ...DEFAULT_OPTIONS, ...options };
 
@@ -223,10 +223,7 @@ function extractRuleId(code: string): string | null {
 /**
  * Get the higher severity between two
  */
-function higherSeverity(
-  a: DiagnosticSeverity,
-  b: DiagnosticSeverity
-): DiagnosticSeverity {
+function higherSeverity(a: DiagnosticSeverity, b: DiagnosticSeverity): DiagnosticSeverity {
   const rankA = severityRank(a);
   const rankB = severityRank(b);
   return rankA >= rankB ? a : b;

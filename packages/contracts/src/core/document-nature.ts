@@ -135,7 +135,8 @@ export const EVIDENCE_LEVEL_DESCRIPTIONS: Record<
     i18n: {
       de: {
         label: 'Strukturierte E-Rechnung',
-        description: 'EN16931-konforme elektronische Rechnung mit vollständiger maschinenlesbarer Struktur',
+        description:
+          'EN16931-konforme elektronische Rechnung mit vollständiger maschinenlesbarer Struktur',
         auditRisk: 'Niedrig - erfüllt regulatorische Anforderungen für E-Rechnungen',
       },
       en: {
@@ -196,12 +197,14 @@ export const EVIDENCE_LEVEL_DESCRIPTIONS: Record<
  *
  * @throws {Error} Throws when any property is accessed - CI should block any usage of this constant
  */
-export const MAX_STATUS_BY_EVIDENCE_LEVEL: Record<EvidenceLevel, 'APPROVED' | 'APPROVED_WITH_WARNINGS'> =
-  new Proxy({} as Record<EvidenceLevel, 'APPROVED' | 'APPROVED_WITH_WARNINGS'>, {
-    get(): never {
-      throw new Error(
-        '[OSS BOUNDARY] MAX_STATUS_BY_EVIDENCE_LEVEL has been moved to @fiscal-layer/decision-engine. ' +
-          'Evidence level capping is policy logic, not validation fact.',
-      );
-    },
-  });
+export const MAX_STATUS_BY_EVIDENCE_LEVEL: Record<
+  EvidenceLevel,
+  'APPROVED' | 'APPROVED_WITH_WARNINGS'
+> = new Proxy({} as Record<EvidenceLevel, 'APPROVED' | 'APPROVED_WITH_WARNINGS'>, {
+  get(): never {
+    throw new Error(
+      '[OSS BOUNDARY] MAX_STATUS_BY_EVIDENCE_LEVEL has been moved to @fiscal-layer/decision-engine. ' +
+        'Evidence level capping is policy logic, not validation fact.',
+    );
+  },
+});

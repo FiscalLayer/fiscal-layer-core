@@ -34,13 +34,15 @@ export function detectInvoiceFormatFromXml(xml: string): ParserResult {
     return {
       format: 'unknown',
       documentType: 'Unknown',
-      warnings: [{
-        code: 'PARSE-001',
-        message: 'Empty XML content',
-        severity: 'error',
-        category: 'format',
-        source: 'steps-parser',
-      }],
+      warnings: [
+        {
+          code: 'PARSE-001',
+          message: 'Empty XML content',
+          severity: 'error',
+          category: 'format',
+          source: 'steps-parser',
+        },
+      ],
     };
   }
 
@@ -50,13 +52,15 @@ export function detectInvoiceFormatFromXml(xml: string): ParserResult {
     return {
       format: 'unknown',
       documentType: 'Unknown',
-      warnings: [{
-        code: 'PARSE-002',
-        message: 'Content does not appear to be XML',
-        severity: 'error',
-        category: 'format',
-        source: 'steps-parser',
-      }],
+      warnings: [
+        {
+          code: 'PARSE-002',
+          message: 'Content does not appear to be XML',
+          severity: 'error',
+          category: 'format',
+          source: 'steps-parser',
+        },
+      ],
     };
   }
 
@@ -88,13 +92,15 @@ export function detectInvoiceFormatFromXml(xml: string): ParserResult {
     return {
       format: 'unknown',
       documentType: 'Unknown',
-      warnings: [{
-        code: 'PARSE-003',
-        message: `Failed to detect format: ${err.message}`,
-        severity: 'error',
-        category: 'format',
-        source: 'steps-parser',
-      }],
+      warnings: [
+        {
+          code: 'PARSE-003',
+          message: `Failed to detect format: ${err.message}`,
+          severity: 'error',
+          category: 'format',
+          source: 'steps-parser',
+        },
+      ],
     };
   }
 }
@@ -177,7 +183,9 @@ function extractNamespaces(xml: string): Map<string, string> {
  * Detect document type from root element name
  */
 function detectDocumentType(rootElement: string): DocumentType {
-  const localName = rootElement.includes(':') ? rootElement.split(':')[1] ?? rootElement : rootElement;
+  const localName = rootElement.includes(':')
+    ? (rootElement.split(':')[1] ?? rootElement)
+    : rootElement;
   const lowerName = localName.toLowerCase();
 
   if (lowerName === 'invoice') {
@@ -197,7 +205,11 @@ function detectDocumentType(rootElement: string): DocumentType {
 /**
  * Detect format based on XML structure and content
  */
-function detectFormat(xml: string, rootInfo: RootInfo, namespaces: Map<string, string>): FormatInfo {
+function detectFormat(
+  xml: string,
+  rootInfo: RootInfo,
+  namespaces: Map<string, string>,
+): FormatInfo {
   const lowerXml = xml.toLowerCase();
   const localName = rootInfo.localName.toLowerCase();
 
@@ -226,7 +238,10 @@ function detectFormat(xml: string, rootInfo: RootInfo, namespaces: Map<string, s
   const guidelineId = extractElement(xml, 'GuidelineSpecifiedDocumentContextParameter');
 
   // Build combined profile string for pattern matching
-  const combinedProfile = [customizationId, profileId, guidelineId].filter(Boolean).join(' ').toLowerCase();
+  const combinedProfile = [customizationId, profileId, guidelineId]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
 
   // Helper to build FormatInfo with optional properties (exactOptionalPropertyTypes safe)
   const buildFormatInfo = (format: DetectedFormat): FormatInfo => {
@@ -289,7 +304,10 @@ function detectFormat(xml: string, rootInfo: RootInfo, namespaces: Map<string, s
  */
 function extractElement(xml: string, elementName: string): string | null {
   // Try with namespace prefix
-  const prefixPattern = new RegExp(`<[a-z]+:${elementName}[^>]*>([^<]+)<\\/[a-z]+:${elementName}>`, 'i');
+  const prefixPattern = new RegExp(
+    `<[a-z]+:${elementName}[^>]*>([^<]+)<\\/[a-z]+:${elementName}>`,
+    'i',
+  );
   const prefixMatch = xml.match(prefixPattern);
   if (prefixMatch?.[1]) {
     return prefixMatch[1].trim();
@@ -305,7 +323,7 @@ function extractElement(xml: string, elementName: string): string | null {
   // Try nested structure (CII style)
   const nestedPattern = new RegExp(
     `<[a-z]*:?${elementName}[^>]*>[\\s\\S]*?<[a-z]*:?ID[^>]*>([^<]+)<\\/[a-z]*:?ID>`,
-    'i'
+    'i',
   );
   const nestedMatch = xml.match(nestedPattern);
   if (nestedMatch?.[1]) {
@@ -319,25 +337,31 @@ function extractElement(xml: string, elementName: string): string | null {
  * Check if profile matches XRechnung
  */
 function isXRechnungProfile(profile: string, xml: string): boolean {
-  return FORMAT_PROFILES.XRECHNUNG.some(p => profile.includes(p.toLowerCase())) ||
-    xml.includes('xrechnung');
+  return (
+    FORMAT_PROFILES.XRECHNUNG.some((p) => profile.includes(p.toLowerCase())) ||
+    xml.includes('xrechnung')
+  );
 }
 
 /**
  * Check if profile matches ZUGFeRD/Factur-X
  */
 function isZugferdProfile(profile: string, xml: string): boolean {
-  return FORMAT_PROFILES.ZUGFERD.some(p => profile.includes(p.toLowerCase())) ||
+  return (
+    FORMAT_PROFILES.ZUGFERD.some((p) => profile.includes(p.toLowerCase())) ||
     xml.includes('zugferd') ||
-    xml.includes('factur-x');
+    xml.includes('factur-x')
+  );
 }
 
 /**
  * Check if profile matches Peppol
  */
 function isPeppolProfile(profile: string, xml: string): boolean {
-  return FORMAT_PROFILES.PEPPOL.some(p => profile.includes(p.toLowerCase())) ||
-    (xml.includes('peppol') && !xml.includes('xrechnung'));
+  return (
+    FORMAT_PROFILES.PEPPOL.some((p) => profile.includes(p.toLowerCase())) ||
+    (xml.includes('peppol') && !xml.includes('xrechnung'))
+  );
 }
 
 /**

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-deprecated -- Using deprecated continueOnFailure for backward compatibility */
-/* eslint-disable @typescript-eslint/no-unnecessary-condition -- Defensive null checks */
+
 import type {
   ExecutionPlan,
   ExecutionStep,
@@ -40,9 +40,7 @@ export function calculateConfigHash(plan: ExecutionPlan): string {
  * @param snapshot - The execution plan snapshot (without planHash field)
  * @returns Hash in format: "sha256:<hex>"
  */
-export function calculatePlanHash(
-  snapshot: Omit<ExecutionPlanSnapshot, 'planHash'>,
-): string {
+export function calculatePlanHash(snapshot: Omit<ExecutionPlanSnapshot, 'planHash'>): string {
   // Create deterministic representation for plan hash
   // Excludes createdAt as it changes on each execution
   // Excludes nodeVersion to prevent environment drift

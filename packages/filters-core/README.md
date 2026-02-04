@@ -49,6 +49,7 @@ This package (and all OSS packages) **MUST NOT**:
 5. ❌ Log PII (use safe logger from `@fiscal-layer/shared`)
 
 Run boundary check before commits:
+
 ```bash
 pnpm check:oss-boundary
 ```
@@ -61,11 +62,11 @@ pnpm add @fiscal-layer/filters-core
 
 ## Included Filters
 
-| Filter | ID | Description | External API |
-|--------|-----|-------------|--------------|
-| Parser | `parser` | Parses invoice documents, detects format | No |
-| KoSIT | `kosit` | Schema/Schematron validation (local Docker) | No |
-| Semantic Risk | `semantic-risk` | Business logic analysis | No |
+| Filter        | ID              | Description                                 | External API |
+| ------------- | --------------- | ------------------------------------------- | ------------ |
+| Parser        | `parser`        | Parses invoice documents, detects format    | No           |
+| KoSIT         | `kosit`         | Schema/Schematron validation (local Docker) | No           |
+| Semantic Risk | `semantic-risk` | Business logic analysis                     | No           |
 
 ## Usage
 
@@ -88,6 +89,7 @@ registry.register(semanticRiskFilter);
 ### Parser Filter
 
 Parses invoice documents and detects format:
+
 - XRechnung
 - ZUGFeRD / Factur-X
 - Peppol BIS
@@ -114,6 +116,7 @@ const result = await kositFilter.execute(context);
 ### Semantic Risk Filter
 
 Analyzes invoice for business logic issues:
+
 - Calculation verification (line items vs totals)
 - Date anomaly detection (future dates, due < issue)
 - High-value transaction flagging

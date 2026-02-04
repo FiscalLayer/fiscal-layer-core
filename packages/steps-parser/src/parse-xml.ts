@@ -1,9 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars -- Imports used for type inference */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment -- XML parsing produces dynamic types */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access -- XML navigation requires dynamic access */
 /* eslint-disable @typescript-eslint/no-unsafe-argument -- XML parsing produces dynamic types */
 /* eslint-disable @typescript-eslint/non-nullable-type-assertion-style -- Explicit as syntax for clarity */
-/* eslint-disable @typescript-eslint/no-unnecessary-condition -- Defensive null checks */
 /* eslint-disable @typescript-eslint/no-base-to-string -- Dynamic value conversion */
 /* eslint-disable @typescript-eslint/no-unnecessary-type-conversion -- Explicit toString for clarity */
 /**
@@ -41,7 +39,10 @@ import type { DetectedFormat, ParserResult } from './types.js';
  * @param format - Detected format from detectInvoiceFormatFromXml
  * @returns CanonicalInvoice structure
  */
-export function parseXmlToCanonicalInvoice(xml: string, formatResult: ParserResult): CanonicalInvoice {
+export function parseXmlToCanonicalInvoice(
+  xml: string,
+  formatResult: ParserResult,
+): CanonicalInvoice {
   const parser = new XMLParser({
     ignoreAttributes: false,
     attributeNamePrefix: '@_',
@@ -68,7 +69,7 @@ export function parseXmlToCanonicalInvoice(xml: string, formatResult: ParserResu
   const parsed = parser.parse(xml);
 
   // Determine which parser to use based on root element
-  const rootElement = Object.keys(parsed).find(k => !k.startsWith('?'));
+  const rootElement = Object.keys(parsed).find((k) => !k.startsWith('?'));
 
   if (!rootElement) {
     throw new Error('No root element found in XML');
@@ -95,20 +96,20 @@ export function parseXmlToCanonicalInvoice(xml: string, formatResult: ParserResu
 function parseUblInvoice(
   doc: Record<string, unknown>,
   formatResult: ParserResult,
-  isCreditNote: boolean
+  isCreditNote: boolean,
 ): CanonicalInvoice {
   const now = new Date().toISOString();
 
   // Basic fields
   const invoiceNumber = getTextValue(doc, 'ID') ?? 'UNKNOWN';
-  const issueDate = getTextValue(doc, 'IssueDate') ?? now.split('T')[0] as string;
+  const issueDate = getTextValue(doc, 'IssueDate') ?? (now.split('T')[0] as string);
   const dueDate = getTextValue(doc, 'DueDate');
   const currencyCode = getTextValue(doc, 'DocumentCurrencyCode') ?? 'EUR';
 
   // Invoice type - map to UNTDID 1001 codes
   const invoiceTypeCode = mapUblInvoiceType(
     getTextValue(doc, 'InvoiceTypeCode') ?? getTextValue(doc, 'CreditNoteTypeCode'),
-    isCreditNote
+    isCreditNote,
   );
 
   // Parties
@@ -158,7 +159,10 @@ function parseUblInvoice(
 /**
  * Parse UN/CEFACT CII (CrossIndustryInvoice)
  */
-function parseCiiInvoice(doc: Record<string, unknown>, formatResult: ParserResult): CanonicalInvoice {
+function parseCiiInvoice(
+  doc: Record<string, unknown>,
+  formatResult: ParserResult,
+): CanonicalInvoice {
   const now = new Date().toISOString();
 
   // CII structure: ExchangedDocument, SupplyChainTradeTransaction
@@ -166,12 +170,13 @@ function parseCiiInvoice(doc: Record<string, unknown>, formatResult: ParserResul
   const tradeTransaction = getNestedObject(doc, 'SupplyChainTradeTransaction') ?? {};
   const headerAgreement = getNestedObject(tradeTransaction, 'ApplicableHeaderTradeAgreement') ?? {};
   const headerDelivery = getNestedObject(tradeTransaction, 'ApplicableHeaderTradeDelivery') ?? {};
-  const headerSettlement = getNestedObject(tradeTransaction, 'ApplicableHeaderTradeSettlement') ?? {};
+  const headerSettlement =
+    getNestedObject(tradeTransaction, 'ApplicableHeaderTradeSettlement') ?? {};
 
   // Basic fields
   const invoiceNumber = getTextValue(exchangedDoc, 'ID') ?? 'UNKNOWN';
   const issueDateObj = getNestedObject(exchangedDoc, 'IssueDateTime.DateTimeString');
-  const issueDate = parseCiiDate(issueDateObj) ?? now.split('T')[0] as string;
+  const issueDate = parseCiiDate(issueDateObj) ?? (now.split('T')[0] as string);
 
   const currencyCode = getTextValue(headerSettlement, 'InvoiceCurrencyCode') ?? 'EUR';
 
@@ -184,7 +189,10 @@ function parseCiiInvoice(doc: Record<string, unknown>, formatResult: ParserResul
   const buyer = parseCiiParty(getNestedObject(headerAgreement, 'BuyerTradeParty'));
 
   // Line items
-  const lineItems = parseCiiLineItems(tradeTransaction['IncludedSupplyChainTradeLineItem'], currencyCode);
+  const lineItems = parseCiiLineItems(
+    tradeTransaction['IncludedSupplyChainTradeLineItem'],
+    currencyCode,
+  );
 
   // Totals
   const totals = parseCiiTotals(headerSettlement, currencyCode);
@@ -237,7 +245,8 @@ function parseUblParty(party: Record<string, unknown> | null): CanonicalParty {
   }
 
   const partyName = getNestedObject(party, 'PartyName');
-  const name = getTextValue(partyName, 'Name') ??
+  const name =
+    getTextValue(partyName, 'Name') ??
     getTextValue(getNestedObject(party, 'PartyLegalEntity'), 'RegistrationName') ??
     'Unknown';
 
@@ -255,7 +264,8 @@ function parseUblAddress(address: Record<string, unknown> | null): PostalAddress
     return undefined;
   }
 
-  const countryCode = getTextValue(getNestedObject(address, 'Country'), 'IdentificationCode') ?? 'XX';
+  const countryCode =
+    getTextValue(getNestedObject(address, 'Country'), 'IdentificationCode') ?? 'XX';
   const streetName = getTextValue(address, 'StreetName');
   const additionalStreetName = getTextValue(address, 'AdditionalStreetName');
   const cityName = getTextValue(address, 'CityName');
@@ -280,14 +290,12 @@ function parseUblLineItems(lines: unknown, currencyCode: string): CanonicalLineI
     const id = getTextValue(line, 'ID') ?? String(index + 1);
     const item = getNestedObject(line, 'Item') ?? {};
 
-    const description = getTextValue(item, 'Description') ??
-      getTextValue(item, 'Name') ??
-      'Item';
+    const description = getTextValue(item, 'Description') ?? getTextValue(item, 'Name') ?? 'Item';
 
-    const quantity = getTextValue(line, 'InvoicedQuantity') ??
-      getTextValue(line, 'CreditedQuantity') ??
-      '1';
-    const unitCode = getAttributeValue(line, 'InvoicedQuantity', '@_unitCode') ??
+    const quantity =
+      getTextValue(line, 'InvoicedQuantity') ?? getTextValue(line, 'CreditedQuantity') ?? '1';
+    const unitCode =
+      getAttributeValue(line, 'InvoicedQuantity', '@_unitCode') ??
       getAttributeValue(line, 'CreditedQuantity', '@_unitCode') ??
       'C62';
 
@@ -298,7 +306,8 @@ function parseUblLineItems(lines: unknown, currencyCode: string): CanonicalLineI
     const lineNetAmount = getTextValue(line, 'LineExtensionAmount') ?? '0';
 
     // Tax category
-    const taxCategoryObj = getNestedObject(item, 'ClassifiedTaxCategory') ??
+    const taxCategoryObj =
+      getNestedObject(item, 'ClassifiedTaxCategory') ??
       getNestedObject(line, 'TaxTotal.TaxSubtotal.TaxCategory');
     const taxCategory = parseUblTaxCategory(taxCategoryObj, lineNetAmount);
 
@@ -317,7 +326,7 @@ function parseUblLineItems(lines: unknown, currencyCode: string): CanonicalLineI
 
 function parseUblTaxCategory(
   category: Record<string, unknown> | null,
-  baseAmount: string
+  baseAmount: string,
 ): TaxCategory {
   if (!category) {
     return {
@@ -340,11 +349,19 @@ function parseUblTotals(doc: Record<string, unknown>, currencyCode: string): Mon
   const legalMonetaryTotal = getNestedObject(doc, 'LegalMonetaryTotal') ?? {};
   const taxTotal = getNestedObject(doc, 'TaxTotal') ?? {};
 
-  const lineExtensionAmount = normalizeDecimal(getTextValue(legalMonetaryTotal, 'LineExtensionAmount') ?? '0');
-  const taxExclusiveAmount = normalizeDecimal(getTextValue(legalMonetaryTotal, 'TaxExclusiveAmount') ?? lineExtensionAmount);
+  const lineExtensionAmount = normalizeDecimal(
+    getTextValue(legalMonetaryTotal, 'LineExtensionAmount') ?? '0',
+  );
+  const taxExclusiveAmount = normalizeDecimal(
+    getTextValue(legalMonetaryTotal, 'TaxExclusiveAmount') ?? lineExtensionAmount,
+  );
   const taxAmount = normalizeDecimal(getTextValue(taxTotal, 'TaxAmount') ?? '0');
-  const taxInclusiveAmount = normalizeDecimal(getTextValue(legalMonetaryTotal, 'TaxInclusiveAmount') ?? '0');
-  const payableAmount = normalizeDecimal(getTextValue(legalMonetaryTotal, 'PayableAmount') ?? taxInclusiveAmount);
+  const taxInclusiveAmount = normalizeDecimal(
+    getTextValue(legalMonetaryTotal, 'TaxInclusiveAmount') ?? '0',
+  );
+  const payableAmount = normalizeDecimal(
+    getTextValue(legalMonetaryTotal, 'PayableAmount') ?? taxInclusiveAmount,
+  );
 
   // Tax breakdown
   const taxSubtotals = taxTotal['TaxSubtotal'];
@@ -354,12 +371,17 @@ function parseUblTotals(doc: Record<string, unknown>, currencyCode: string): Mon
     lineExtensionAmount,
     taxExclusiveAmount,
     taxAmount,
-    taxBreakdown: taxBreakdown.length > 0 ? taxBreakdown : [{
-      code: 'S',
-      rate: '19',
-      taxableAmount: taxExclusiveAmount,
-      taxAmount,
-    }],
+    taxBreakdown:
+      taxBreakdown.length > 0
+        ? taxBreakdown
+        : [
+            {
+              code: 'S',
+              rate: '19',
+              taxableAmount: taxExclusiveAmount,
+              taxAmount,
+            },
+          ],
     taxInclusiveAmount,
     payableAmount,
   };
@@ -450,7 +472,8 @@ function parseCiiLineItems(lines: unknown, currencyCode: string): CanonicalLineI
     // Price - ChargeAmount may be nested
     const priceObj = getNestedObject(agreement, 'NetPriceProductTradePrice');
     const chargeAmountObj = getNestedObject(priceObj, 'ChargeAmount');
-    const unitPrice = extractTextFromValue(chargeAmountObj) ?? getTextValue(priceObj, 'ChargeAmount') ?? '0';
+    const unitPrice =
+      extractTextFromValue(chargeAmountObj) ?? getTextValue(priceObj, 'ChargeAmount') ?? '0';
 
     // Line total
     const summation = getNestedObject(settlement, 'SpecifiedTradeSettlementLineMonetarySummation');
@@ -472,10 +495,7 @@ function parseCiiLineItems(lines: unknown, currencyCode: string): CanonicalLineI
   });
 }
 
-function parseCiiTaxCategory(
-  tax: Record<string, unknown> | null,
-  baseAmount: string
-): TaxCategory {
+function parseCiiTaxCategory(tax: Record<string, unknown> | null, baseAmount: string): TaxCategory {
   if (!tax) {
     return {
       code: 'S',
@@ -494,13 +514,18 @@ function parseCiiTaxCategory(
 }
 
 function parseCiiTotals(settlement: Record<string, unknown>, currencyCode: string): MonetaryTotals {
-  const summation = getNestedObject(settlement, 'SpecifiedTradeSettlementHeaderMonetarySummation') ?? {};
+  const summation =
+    getNestedObject(settlement, 'SpecifiedTradeSettlementHeaderMonetarySummation') ?? {};
 
   const lineExtensionAmount = normalizeDecimal(getTextValue(summation, 'LineTotalAmount') ?? '0');
-  const taxExclusiveAmount = normalizeDecimal(getTextValue(summation, 'TaxBasisTotalAmount') ?? lineExtensionAmount);
+  const taxExclusiveAmount = normalizeDecimal(
+    getTextValue(summation, 'TaxBasisTotalAmount') ?? lineExtensionAmount,
+  );
   const taxAmount = normalizeDecimal(getTextValue(summation, 'TaxTotalAmount') ?? '0');
   const taxInclusiveAmount = normalizeDecimal(getTextValue(summation, 'GrandTotalAmount') ?? '0');
-  const payableAmount = normalizeDecimal(getTextValue(summation, 'DuePayableAmount') ?? taxInclusiveAmount);
+  const payableAmount = normalizeDecimal(
+    getTextValue(summation, 'DuePayableAmount') ?? taxInclusiveAmount,
+  );
 
   // Tax breakdown
   const tradeTaxes = settlement['ApplicableTradeTax'];
@@ -510,12 +535,17 @@ function parseCiiTotals(settlement: Record<string, unknown>, currencyCode: strin
     lineExtensionAmount,
     taxExclusiveAmount,
     taxAmount,
-    taxBreakdown: taxBreakdown.length > 0 ? taxBreakdown : [{
-      code: 'S',
-      rate: '19',
-      taxableAmount: taxExclusiveAmount,
-      taxAmount,
-    }],
+    taxBreakdown:
+      taxBreakdown.length > 0
+        ? taxBreakdown
+        : [
+            {
+              code: 'S',
+              rate: '19',
+              taxableAmount: taxExclusiveAmount,
+              taxAmount,
+            },
+          ],
     taxInclusiveAmount,
     payableAmount,
   };
@@ -615,7 +645,7 @@ function extractTextFromValue(value: unknown): string | null {
     if ('#text' in v) return String(v['#text']);
     if ('_' in v) return String(v['_']);
     // Sometimes the value is the first property
-    const keys = Object.keys(v).filter(k => !k.startsWith('@'));
+    const keys = Object.keys(v).filter((k) => !k.startsWith('@'));
     if (keys[0]) {
       const firstVal = v[keys[0]];
       if (typeof firstVal === 'string' || typeof firstVal === 'number') {
@@ -630,7 +660,10 @@ function extractTextFromValue(value: unknown): string | null {
 /**
  * Get attribute value directly from an object
  */
-function getAttrFromObject(obj: Record<string, unknown> | null | undefined, attrKey: string): string | null {
+function getAttrFromObject(
+  obj: Record<string, unknown> | null | undefined,
+  attrKey: string,
+): string | null {
   if (!obj) return null;
   const attr = obj[attrKey];
   if (typeof attr === 'string') {
@@ -642,7 +675,10 @@ function getAttrFromObject(obj: Record<string, unknown> | null | undefined, attr
 /**
  * Get nested object using dot notation path
  */
-function getNestedObject(obj: Record<string, unknown> | null | undefined, path: string): Record<string, unknown> | null {
+function getNestedObject(
+  obj: Record<string, unknown> | null | undefined,
+  path: string,
+): Record<string, unknown> | null {
   if (!obj) return null;
 
   const parts = path.split('.');
@@ -668,7 +704,7 @@ function getNestedObject(obj: Record<string, unknown> | null | undefined, path: 
 function getAttributeValue(
   obj: Record<string, unknown> | null | undefined,
   elementKey: string,
-  attrKey: string
+  attrKey: string,
 ): string | null {
   if (!obj) return null;
 
@@ -737,14 +773,22 @@ function mapUblInvoiceType(typeCode: string | null, isCreditNote: boolean): Invo
   }
 
   switch (typeCode) {
-    case '380': return '380'; // Commercial Invoice
-    case '381': return '381'; // Credit Note
-    case '383': return '383'; // Debit Note
-    case '384': return '384'; // Corrected Invoice
-    case '386': return '386'; // Prepayment Invoice
-    case '389': return '389'; // Self-billed Invoice
-    case '751': return '751'; // Invoice Information
-    default: return '380'; // Default to Commercial Invoice
+    case '380':
+      return '380'; // Commercial Invoice
+    case '381':
+      return '381'; // Credit Note
+    case '383':
+      return '383'; // Debit Note
+    case '384':
+      return '384'; // Corrected Invoice
+    case '386':
+      return '386'; // Prepayment Invoice
+    case '389':
+      return '389'; // Self-billed Invoice
+    case '751':
+      return '751'; // Invoice Information
+    default:
+      return '380'; // Default to Commercial Invoice
   }
 }
 
@@ -753,13 +797,21 @@ function mapUblInvoiceType(typeCode: string | null, isCreditNote: boolean): Invo
  */
 function mapCiiInvoiceType(typeCode: string | null): InvoiceTypeCode {
   switch (typeCode) {
-    case '380': return '380';
-    case '381': return '381';
-    case '383': return '383';
-    case '384': return '384';
-    case '386': return '386';
-    case '389': return '389';
-    case '751': return '751';
-    default: return '380';
+    case '380':
+      return '380';
+    case '381':
+      return '381';
+    case '383':
+      return '383';
+    case '384':
+      return '384';
+    case '386':
+      return '386';
+    case '389':
+      return '389';
+    case '751':
+      return '751';
+    default:
+      return '380';
   }
 }
