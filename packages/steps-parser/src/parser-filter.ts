@@ -72,8 +72,43 @@ export function createParserFilter(userConfig?: ParserFilterConfig): Filter {
       const diagnostics: Diagnostic[] = [];
 
       try {
-        // Get XML content from context
-        const xml = context.rawInvoice.content;
+        // Get content from context
+        const content = context.rawInvoice.content;
+
+        // Check if content is a PDF (binary or base64-encoded)
+        // PDF files start with %PDF- magic bytes
+        const isPdfBinary = content.startsWith('%PDF-');
+        const isPdfBase64 =
+          content.startsWith('JVBERi') || // %PDF- in base64
+          (content.length > 100 && /^[A-Za-z0-9+/=\s]+$/.test(content.slice(0, 100)));
+
+        if (isPdfBinary || isPdfBase64) {
+          // Skip parser - let PDF filter handle this
+          return {
+            filterId: filter.id,
+            filterVersion: filter.version,
+            execution: 'skipped',
+            diagnostics: [
+              {
+                code: 'PARSE-PDF-SKIP',
+                message: 'PDF content detected - delegating to PDF filter',
+                severity: 'info',
+                category: 'format',
+                source: filter.id,
+              },
+            ],
+            durationMs: Date.now() - startTime,
+            startedAt,
+            completedAt: new Date().toISOString(),
+            metadata: {
+              skippedReason: 'pdf_content',
+              detectedContentType: 'application/pdf',
+            },
+          };
+        }
+
+        // Continue with XML parsing
+        const xml = content;
 
         // Size check (no PII in error message)
         if (xml.length > config.maxXmlSize) {

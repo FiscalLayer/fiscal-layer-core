@@ -180,6 +180,30 @@ describe('ParserFilter', () => {
       expect(errorMessages).not.toMatch(/\/home\//);
       expect(errorMessages).not.toMatch(/C:\\/);
     });
+
+    it('should skip processing for PDF content (binary)', async () => {
+      // PDF magic bytes
+      const pdfContent = '%PDF-1.4 fake pdf content';
+      const context = createMockContext(pdfContent);
+
+      const result = await parserFilter.execute(context);
+
+      expect(result.execution).toBe('skipped');
+      expect(result.diagnostics[0]?.code).toBe('PARSE-PDF-SKIP');
+      expect(result.metadata?.skippedReason).toBe('pdf_content');
+      expect(result.metadata?.detectedContentType).toBe('application/pdf');
+    });
+
+    it('should skip processing for PDF content (base64)', async () => {
+      // %PDF- in base64 is JVBERi
+      const pdfBase64 = 'JVBERi0xLjQgZmFrZSBwZGYgY29udGVudA==';
+      const context = createMockContext(pdfBase64);
+
+      const result = await parserFilter.execute(context);
+
+      expect(result.execution).toBe('skipped');
+      expect(result.diagnostics[0]?.code).toBe('PARSE-PDF-SKIP');
+    });
   });
 
   describe('configuration', () => {
