@@ -204,6 +204,17 @@ describe('ParserFilter', () => {
       expect(result.execution).toBe('skipped');
       expect(result.diagnostics[0]?.code).toBe('PARSE-PDF-SKIP');
     });
+
+    it('should skip processing for PDF content (web uploader prefix)', async () => {
+      // Web uploader adds __PDF_BASE64__ prefix
+      const pdfWithPrefix = '__PDF_BASE64__JVBERi0xLjQgZmFrZSBwZGYgY29udGVudA==';
+      const context = createMockContext(pdfWithPrefix);
+
+      const result = await parserFilter.execute(context);
+
+      expect(result.execution).toBe('skipped');
+      expect(result.diagnostics[0]?.code).toBe('PARSE-PDF-SKIP');
+    });
   });
 
   describe('configuration', () => {

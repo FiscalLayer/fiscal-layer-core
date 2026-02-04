@@ -75,14 +75,16 @@ export function createParserFilter(userConfig?: ParserFilterConfig): Filter {
         // Get content from context
         const content = context.rawInvoice.content;
 
-        // Check if content is a PDF (binary or base64-encoded)
+        // Check if content is a PDF (binary, base64-encoded, or with web uploader prefix)
         // PDF files start with %PDF- magic bytes
         const isPdfBinary = content.startsWith('%PDF-');
         const isPdfBase64 =
           content.startsWith('JVBERi') || // %PDF- in base64
           (content.length > 100 && /^[A-Za-z0-9+/=\s]+$/.test(content.slice(0, 100)));
+        // Web uploader prefixes PDF content with __PDF_BASE64__
+        const isPdfWithPrefix = content.startsWith('__PDF_BASE64__');
 
-        if (isPdfBinary || isPdfBase64) {
+        if (isPdfBinary || isPdfBase64 || isPdfWithPrefix) {
           // Skip parser - let PDF filter handle this
           return {
             filterId: filter.id,
