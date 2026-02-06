@@ -6,6 +6,7 @@ import type { ComplianceFingerprint } from './fingerprint.js';
 import type { UsageSummary } from '../billing/events.js';
 import type { RetentionWarning } from '../privacy/retention-enforcer.js';
 import type { PolicyGateDecision } from './policy-gate.js';
+import type { JudgmentOutput } from './judgment.js';
 
 /**
  * Report state describes the EXECUTION LIFECYCLE of the pipeline.
@@ -317,6 +318,13 @@ export interface ValidationReport {
    * Only present if PolicyGate filter was executed in the pipeline.
    */
   finalDecision?: PolicyGateDecision;
+
+  /**
+   * CFO-readable judgment output.
+   * Contains the structured conclusion, risk assessment, and audit trace.
+   * Only present if the judgment assembler was invoked.
+   */
+  judgment?: JudgmentOutput | undefined;
 }
 
 /**

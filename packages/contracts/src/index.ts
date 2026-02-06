@@ -26,6 +26,7 @@ export * from './execution/report.js';
 export * from './execution/fingerprint.js';
 export * from './execution/failure-policy.js';
 export * from './execution/policy-gate.js';
+export * from './execution/judgment.js';
 
 // Privacy
 export * from './privacy/retention.js';

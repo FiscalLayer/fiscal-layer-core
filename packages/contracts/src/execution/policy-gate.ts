@@ -320,6 +320,7 @@ export function isDecisionReasonCode(value: unknown): value is DecisionReasonCod
 
 import type { StepResult } from './result.js';
 import type { Diagnostic } from '../core/diagnostic.js';
+import type { EvidenceLevel } from '../core/document-nature.js';
 
 /**
  * Input for policy evaluation.
@@ -347,6 +348,13 @@ export interface PolicyEvaluationInput {
    * Policy configuration
    */
   config: PolicyGateConfig;
+
+  /**
+   * Evidence level of the source document.
+   * When provided, the policy engine may cap decisions based on evidence quality.
+   * E1 = scanned/OCR, E2 = text-layer PDF, E3 = structured e-invoice.
+   */
+  evidenceLevel?: EvidenceLevel | undefined;
 }
 
 /**
